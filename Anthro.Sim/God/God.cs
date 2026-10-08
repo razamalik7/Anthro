@@ -41,12 +41,22 @@ namespace Anthro.Sim
         public double Favor { get; set; } = StartFavorPool;
         public double Reputation { get; set; } = 0.0;
         public double FavorCapFactor { get; set; } = 10.0;
+        public bool GodFaded { get; set; }
+        public int IgnoredEmbers { get; set; }
+
+        public bool SpendFavor(double amount)
+        {
+            if (GodFaded || amount <= 0) return false;
+            if (Favor < amount) return false;
+            Favor -= amount;
+            return true;
+        }
 
         /// <summary>
         /// Favor cap = Σ believers' god:real * k.
         /// Retains at least StartFavorPool while belief is budding.
         /// </summary>
-        public double FavorCap => Math.Max(StartFavorPool, People.Where(Simulation.IsBeliever).Sum(Simulation.GodReal) * FavorCapFactor);
+        public double FavorCap => GodFaded ? 0.0 : Math.Max(StartFavorPool, People.Where(Simulation.IsBeliever).Sum(Simulation.GodReal) * FavorCapFactor);
 
         public readonly List<GodEvent> GodEvents = new List<GodEvent>();
         readonly Queue<IGodCommand> _pendingGodCommands = new Queue<IGodCommand>();
@@ -54,7 +64,7 @@ namespace Anthro.Sim
         /// <summary>Enqueue a god command to be executed deterministically at the start of the next hour step.</summary>
         public void EnqueueGodCommand(IGodCommand cmd)
         {
-            if (cmd == null) return;
+            if (cmd == null || GodFaded) return;
             _pendingGodCommands.Enqueue(cmd);
         }
 
@@ -78,7 +88,7 @@ namespace Anthro.Sim
         /// <summary>Applied at the start of an hour step before any band actions.</summary>
         internal void ApplyGodCommands()
         {
-            if (Simulation.Off("god"))
+            if (Simulation.Off("god") || GodFaded)
             {
                 _pendingGodCommands.Clear();
                 return;
@@ -87,9 +97,17 @@ namespace Anthro.Sim
             while (_pendingGodCommands.Count > 0)
             {
                 var cmd = _pendingGodCommands.Dequeue();
-                if (Favor >= cmd.Cost)
+                double cost = cmd.Cost;
+                bool isBlessing = cmd.PowerName == "BountyPlant" || cmd.PowerName == "BountyAnimal" || cmd.PowerName == "BlessedBirth";
+                bool isWrath = cmd.PowerName == "Omen";
+                if (isBlessing && Reputation > 0)
+                    cost *= Math.Max(0.7, 1.0 - Reputation * 0.03);
+                else if (isWrath && Reputation < 0)
+                    cost *= Math.Max(0.7, 1.0 - Math.Abs(Reputation) * 0.03);
+
+                if (Favor >= cost)
                 {
-                    Favor -= cmd.Cost;
+                    Favor -= cost;
                     cmd.Execute(this);
                 }
             }

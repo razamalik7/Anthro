@@ -465,6 +465,27 @@ namespace Anthro.Sim.Activities
                 }
             }
 
+            // Offer to the god: give up food/goods at a sacred spot or hearth
+            // Value = belief * expected favor return; sized by giver's means
+            // Cruel god (god:kind < 0) prompts fear offerings to appease wrath!
+            if (!Simulation.Off("god") && !Simulation.Off("offer") && maturity > 0.6 && Simulation.AtCamp(p) && home.Food.Total >= 2.0 && home.DaysOfFood >= 2.0)
+            {
+                double real = Simulation.GodReal(p);
+                if (real > 0.25)
+                {
+                    double kind = Simulation.GodKind(p);
+                    double offerAmount = Math.Min(2.0, home.Food.Total * 0.15);
+                    double fearMotive = kind < 0 ? Math.Abs(kind) * p.W(Drive.Safety) * 2.5 : 0.0;
+                    double devotionMotive = kind > 0 ? kind * 0.5 : 0.0;
+                    double offerScore = real * (0.15 + fearMotive + devotionMotive) * (home.DaysOfFood > 4.0 ? 1.0 : 0.5);
+
+                    if (offerScore > 0.1)
+                    {
+                        options.Add(new Option(Verb.Offer, offerScore, () => new Offer(p, offerAmount)));
+                    }
+                }
+            }
+
             // What this person cares about weighs their options: their own drive weights.
             for (int i = 0; i < options.Count; i++)
             {
@@ -477,7 +498,7 @@ namespace Anthro.Sim.Activities
                     Verb.Socialize or Verb.Visit or Verb.Play => p.W(Drive.Company),
                     Verb.Care => p.W(Drive.Family),
                     Verb.Confront or Verb.Attack or Verb.Rally or Verb.Raid => p.W(Drive.Standing) / p.W(Drive.Safety),
-                    Verb.Pray => p.W(Drive.Safety),
+                    Verb.Pray or Verb.Offer => p.W(Drive.Safety),
                     _ => 1,
                 };
                 if (w != 1) options[i] = new Option(o.Verb, o.Score * w, o.Make);

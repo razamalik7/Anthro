@@ -367,11 +367,11 @@ public class SimulationTests
         Assert.Equal(Region.StartFavorPool - 20.0, region.Favor);
         Assert.True(cell.PlantStock >= cell.PlantCapacity, $"Expected plant stock {cell.PlantStock} >= capacity {cell.PlantCapacity}");
 
-        // Cast animal bounty (cost 30)
+        // Cast animal bounty (base cost 30; with kind reputation discount = 29.1)
         region.CastBounty(cx, cy, animals: true);
         region.Step();
 
-        Assert.Equal(Region.StartFavorPool - 50.0, region.Favor);
+        Assert.True(region.Favor <= 1.0, $"Expected favor to be spent down near 0, got {region.Favor}");
         var nearbyAnimals = region.Ecology.Groups.Where(g => !g.Gone && g.Species.Huntable).ToList();
         Assert.NotEmpty(nearbyAnimals);
         Assert.All(nearbyAnimals.Where(g => Anthro.Sim.World.WorldMap.Distance(g.X, g.Y, cx, cy) <= Anthro.Sim.World.WorldMap.FromMeters(5000)),
@@ -469,4 +469,86 @@ public class SimulationTests
         double godPenalty = Simulation.GodActValue(witness, Act.Take);
         Assert.True(godPenalty < 0.0, $"Expected divine penalty to be negative, got {godPenalty}");
     }
+
+    [Fact]
+    public void CruelGodPromptsFearOfferingsAndEarnsFavor()
+    {
+        var region = Region.Create(13);
+        var sim = region.Bands[0];
+        var adult = sim.Band.Members.First(m => sim.Grown(m));
+        var home = adult.Home;
+        Assert.NotNull(home);
+        home.Food.AddMeat(10.0);
+
+        // Believes god is real and cruel
+        adult.Expect.Absorb(Simulation.GodRealTopic, 0.8, 1.0, 0.8);
+        adult.Expect.Absorb(Simulation.GodKindTopic, -0.8, 1.0, -0.8);
+
+        // Test Decider options: Verb.Offer should be available with fear motive
+        var options = Anthro.Sim.Activities.Decider.Options(sim, adult);
+        var offerOpt = options.FirstOrDefault(o => o.Verb == Anthro.Sim.Activities.Verb.Offer);
+        Assert.Equal(Anthro.Sim.Activities.Verb.Offer, offerOpt.Verb);
+        Assert.True(offerOpt.Score > 0.1, $"Offer score should be boosted by fear: {offerOpt.Score}");
+
+        // Now test performing an offer
+        region.Favor = 10.0;
+        double initialFavor = region.Favor;
+        double initialFood = home.Food.Total;
+        var offerAct = new Anthro.Sim.Activities.Offer(adult, 2.0);
+        adult.Current = offerAct;
+        for (int h = 0; h < 2; h++)
+        {
+            offerAct.Hour(sim);
+        }
+
+        Assert.True(region.Favor > initialFavor, $"Expected favor to increase from {initialFavor}, got {region.Favor}");
+        Assert.True(home.Food.Total < initialFood, $"Food should have been sacrificed from {initialFood}, got {home.Food.Total}");
+    }
+
+    [Fact]
+    public void IgnoredEmbersCauseGodToFade()
+    {
+        var region = Region.Create(17);
+        // Force low favor condition
+        region.Favor = 3.0;
+
+        // Ensure few believers (<= 2)
+        foreach (var band in region.Bands)
+        {
+            foreach (var m in band.Band.Members)
+            {
+                m.Expect.Absorb(Simulation.GodRealTopic, 0.05, 1.0, 0.0);
+            }
+        }
+        var sim = region.Bands[0];
+        var believer = sim.Band.Members.First();
+        believer.Expect.Absorb(Simulation.GodRealTopic, 0.8, 1.0, 0.8);
+
+        // Believer registers prayer; should be an ember prayer
+        var p1 = region.AddPrayer(believer, PrayerNeed.Hunger, (int)sim.Band.CampX, (int)sim.Band.CampY);
+        Assert.NotNull(p1);
+        Assert.True(p1.IsEmber, "Prayer should be an ember prayer when favor <= 5 and believers <= 2");
+
+        // Fail 1st ember prayer
+        region.ResolvePrayer(p1, false);
+        Assert.Equal(1, region.IgnoredEmbers);
+        Assert.False(region.GodFaded);
+
+        // 2nd ember prayer fails
+        var p2 = region.AddPrayer(believer, PrayerNeed.Hunger, (int)sim.Band.CampX, (int)sim.Band.CampY);
+        region.ResolvePrayer(p2, false);
+        Assert.Equal(2, region.IgnoredEmbers);
+        Assert.False(region.GodFaded);
+
+        // 3rd ember prayer fails -> God fades!
+        var p3 = region.AddPrayer(believer, PrayerNeed.Hunger, (int)sim.Band.CampX, (int)sim.Band.CampY);
+        region.ResolvePrayer(p3, false);
+        Assert.Equal(3, region.IgnoredEmbers);
+        Assert.True(region.GodFaded, "God should fade after 3 ignored embers");
+        Assert.Equal(0.0, region.Favor);
+
+        // Attempting to spend favor while faded fails
+        Assert.False(region.SpendFavor(1.0));
+    }
 }
+

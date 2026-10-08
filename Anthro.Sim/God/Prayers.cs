@@ -24,6 +24,7 @@ namespace Anthro.Sim
         public bool Resolved { get; private set; }
         public bool Answered { get; private set; }
         public long ResolvedDay { get; private set; }
+        public bool IsEmber { get; set; }
 
         public Prayer(int id, Person asker, PrayerNeed need, int campX, int campY, long startDay, Person? sickTarget = null)
         {
@@ -62,6 +63,11 @@ namespace Anthro.Sim
             if (existing != null) return existing;
 
             var prayer = new Prayer(_nextPrayerId++, asker, need, campX, campY, Clock.Day, sickTarget);
+            if (Favor <= 5.0 && People.Count(Simulation.IsBeliever) <= 2)
+            {
+                prayer.IsEmber = true;
+                GodEvents.Add(new GodEvent(Clock.Tick, "LastEmber", $"{asker.Name} prayed from the last embers of faith", campX, campY));
+            }
             ActivePrayers.Add(prayer);
             PrayersAskedYear++;
             GodEvents.Add(new GodEvent(Clock.Tick, "Prayer", $"{asker.Name} prayed for {need}", campX, campY));
@@ -147,52 +153,77 @@ namespace Anthro.Sim
 
             foreach (var (p, answered) in toResolve)
             {
-                p.Resolve(answered, Clock.Day);
-                ActivePrayers.Remove(p);
-                ResolvedPrayers.Add(p);
-                if (ResolvedPrayers.Count > 500) ResolvedPrayers.RemoveAt(0);
+                ResolvePrayer(p, answered);
+            }
+        }
 
-                if (answered)
+        public void ResolvePrayer(Prayer p, bool answered)
+        {
+            p.Resolve(answered, Clock.Day);
+            ActivePrayers.Remove(p);
+            ResolvedPrayers.Add(p);
+            if (ResolvedPrayers.Count > 500) ResolvedPrayers.RemoveAt(0);
+
+            if (answered)
+            {
+                PrayersResolvedGoodYear++;
+                var band = Bands.FirstOrDefault(b => b.Band.Members.Contains(p.Asker));
+                if (band != null)
                 {
-                    PrayersResolvedGoodYear++;
-                    var band = Bands.FirstOrDefault(b => b.Band.Members.Contains(p.Asker));
-                    if (band != null)
+                    band.ThisYear.PrayersResolvedGood++;
+                    foreach (var w in band.Band.Members.Where(m => m != p.Asker && band.Grown(m)))
                     {
-                        band.ThisYear.PrayersResolvedGood++;
-                        foreach (var w in band.Band.Members.Where(m => m != p.Asker && band.Grown(m)))
-                        {
-                            w.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.03, Simulation.GodAnswers(w));
-                            w.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.01, Simulation.GodReal(w));
-                        }
+                        w.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.03, Simulation.GodAnswers(w));
+                        w.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.01, Simulation.GodReal(w));
                     }
-
-                    // Asker learns answered plea
-                    p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.08, Simulation.GodAnswers(p.Asker));
-                    p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.05, Simulation.GodReal(p.Asker));
-
-                    GodEvents.Add(new GodEvent(Clock.Tick, "PrayerAnswered", $"Plea by {p.Asker.Name} for {p.Need} was met", p.CampX, p.CampY));
-                    InterpretStrikingEvent(p.CampX, p.CampY, isGood: true, "PrayerAnswered");
                 }
-                else
-                {
-                    PrayersResolvedBadYear++;
-                    var band = Bands.FirstOrDefault(b => b.Band.Members.Contains(p.Asker));
-                    if (band != null)
-                    {
-                        band.ThisYear.PrayersResolvedBad++;
-                        foreach (var w in band.Band.Members.Where(m => m != p.Asker && band.Grown(m)))
-                        {
-                            w.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.03, Simulation.GodAnswers(w));
-                        }
-                    }
 
-                    if (p.Asker.Health > 0)
+                // Asker learns answered plea
+                p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.08, Simulation.GodAnswers(p.Asker));
+                p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.05, Simulation.GodReal(p.Asker));
+
+                GodEvents.Add(new GodEvent(Clock.Tick, "PrayerAnswered", $"Plea by {p.Asker.Name} for {p.Need} was met", p.CampX, p.CampY));
+                InterpretStrikingEvent(p.CampX, p.CampY, isGood: true, "PrayerAnswered");
+
+                if (p.IsEmber)
+                {
+                    IgnoredEmbers = 0;
+                    p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.40, Simulation.GodReal(p.Asker));
+                    GodEvents.Add(new GodEvent(Clock.Tick, "EmberAnswered", $"An ember plea was answered! Faith rekindles in {p.Asker.Name}", p.CampX, p.CampY));
+                }
+            }
+            else
+            {
+                PrayersResolvedBadYear++;
+                var band = Bands.FirstOrDefault(b => b.Band.Members.Contains(p.Asker));
+                if (band != null)
+                {
+                    band.ThisYear.PrayersResolvedBad++;
+                    foreach (var w in band.Band.Members.Where(m => m != p.Asker && band.Grown(m)))
                     {
-                        p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.08, Simulation.GodAnswers(p.Asker));
-                        p.Asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, 0.03, Simulation.GodReal(p.Asker));
+                        w.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.03, Simulation.GodAnswers(w));
                     }
-                    GodEvents.Add(new GodEvent(Clock.Tick, "PrayerFailed", $"Plea by {p.Asker.Name} for {p.Need} failed", p.CampX, p.CampY));
-                    InterpretStrikingEvent(p.CampX, p.CampY, isGood: false, "PrayerFailed");
+                }
+
+                if (p.Asker.Health > 0)
+                {
+                    p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.08, Simulation.GodAnswers(p.Asker));
+                    p.Asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, 0.03, Simulation.GodReal(p.Asker));
+                }
+                GodEvents.Add(new GodEvent(Clock.Tick, "PrayerFailed", $"Plea by {p.Asker.Name} for {p.Need} failed", p.CampX, p.CampY));
+                InterpretStrikingEvent(p.CampX, p.CampY, isGood: false, "PrayerFailed");
+
+                if (p.IsEmber)
+                {
+                    IgnoredEmbers++;
+                    GodEvents.Add(new GodEvent(Clock.Tick, "EmberIgnored", $"An ember plea went unanswered ({IgnoredEmbers}/3)", p.CampX, p.CampY));
+                    if (IgnoredEmbers >= 3)
+                    {
+                        GodFaded = true;
+                        Favor = 0.0;
+                        Chronicle.Write(Clock, Importance.Major, "The last embers went cold. The god faded from the world.");
+                        GodEvents.Add(new GodEvent(Clock.Tick, "GodFaded", "The god has faded from existence", p.CampX, p.CampY));
+                    }
                 }
             }
         }

@@ -54,6 +54,21 @@ namespace Anthro.Sim
                     if (b.GetAffinity(a) < 0.3) b.AddAffinity(a, bond);
                 }
             foreach (var m in there) m.Discontent *= 0.9;
+
+            if (!Off("god") && !Off("rite") && Band.AnyoneKnows("lang.ritual"))
+            {
+                var believers = there.Where(IsBeliever).ToList();
+                if (believers.Count > 0)
+                {
+                    double riteFavor = believers.Sum(m => GodReal(m) * 2.5);
+                    Region.Favor = Math.Min(Region.FavorCap, Region.Favor + riteFavor);
+                    ThisYear.FavorGain += riteFavor;
+                    foreach (var m in believers)
+                        m.Expect.Absorb(GodRealTopic, 1.0, 0.04, GodReal(m));
+                    Region.GodEvents.Add(new GodEvent(Clock.Tick, "Rite", $"Sacred rite held during camp gathering (+{riteFavor:F1} favor)", (int)Band.CampX, (int)Band.CampY));
+                }
+            }
+
             Chronicle.Write(Clock, Importance.Detail, Band.AnyoneKnows("lang.ritual")
                 ? $"The camp came together for a feast and the old rites; {there.Count} took part."
                 : $"The camp feasted and danced by the fire; {there.Count} took part.");

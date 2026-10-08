@@ -254,4 +254,45 @@ namespace Anthro.Sim.Activities
             sim.RegisterPrayer(P, _need, _target);
         }
     }
+
+    /// <summary>
+    /// Giving up food or goods at a sacred spot or hearth for the god.
+    /// Valued by belief and expected favor return; size scaled by the giver's means.
+    /// Generates divine favor; fear offerings (for a cruel god) provide heightened favor.
+    /// </summary>
+    public sealed class Offer : TimedActivity
+    {
+        readonly double _amount;
+
+        public Offer(Person p, double amount) : base(p, 1)
+        {
+            Step = "offering";
+            _amount = amount;
+        }
+
+        public override Verb Verb => Verb.Offer;
+        protected override double FatiguePerHour => 0.01;
+
+        protected override void OnHour(Simulation sim)
+        {
+            if (Simulation.Off("god") || Simulation.Off("offer")) return;
+            var home = sim.HomeOf(P);
+            if (home == null || home.Food.Total <= 0) return;
+
+            double actual = home.Food.Take(Math.Min(_amount, home.Food.Total), out _);
+            if (actual <= 0) return;
+
+            double real = Simulation.GodReal(P);
+            double kind = Simulation.GodKind(P);
+            // Fear factor: appease a wrathful/cruel god
+            double fearFactor = kind < 0 ? (1.0 + Math.Abs(kind) * 1.5) : 1.0;
+            double gain = actual * real * 2.5 * fearFactor;
+
+            sim.Region.Favor = Math.Min(sim.Region.FavorCap, sim.Region.Favor + gain);
+            sim.ThisYear.FavorGain += gain;
+
+            sim.Chronicle.Write(sim.Clock, Anthro.Sim.Core.Importance.Detail, $"{P.Name} offered {actual:F1} rations to the god.");
+            sim.Region.GodEvents.Add(new GodEvent(sim.Clock.Tick, "Offer", $"{P.Name} made an offering of {actual:F1} food (+{gain:F1} favor)", (int)sim.Band.CampX, (int)sim.Band.CampY));
+        }
+    }
 }
