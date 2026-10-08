@@ -713,13 +713,14 @@ namespace Anthro.Sim
             }
             SeedViolenceCulture(group);
             SeedCustoms(group);
+            SeedBelief(group);
         }
 
         /// <summary>A newborn takes on its mother's expectations about how people treat each other (it grows up among them).</summary>
         static void InheritSocialExpectations(Person child, Person mother)
         {
             foreach (var kv in mother.Expect.Snapshot())
-                if (kv.Key.StartsWith("act:") || kv.Key.StartsWith("wed:") || kv.Key.StartsWith("bound:") || kv.Key.StartsWith("norm:"))
+                if (kv.Key.StartsWith("act:") || kv.Key.StartsWith("wed:") || kv.Key.StartsWith("bound:") || kv.Key.StartsWith("norm:") || kv.Key.StartsWith("god:"))
                     child.Expect.Absorb(kv.Key, kv.Value, 1, kv.Value);
         }
     }

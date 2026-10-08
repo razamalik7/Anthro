@@ -527,6 +527,8 @@ namespace Anthro.Sim
                 p.WinterLow = 1;
             }
 
+            FadeBelief(p);
+
             p.CareToday = 0;
             p.Fatigue *= 0.9;
             // Whatever makes life here wearing (a crowd of near-strangers, but also feuds, hunger, long days)

@@ -216,4 +216,27 @@ public class SimulationTests
             Assert.True(region.LivingTribes.Count() <= Region.MaxTribes);
         }
     }
+
+    [Fact]
+    public void BeliefStateInitializesInheritsAndFades()
+    {
+        var sim = Simulation.Create(42);
+        Assert.NotEmpty(sim.Band.Members);
+        foreach (var p in sim.Band.Members)
+        {
+            Assert.InRange(Simulation.GodReal(p), 0.0, 1.0);
+            Assert.InRange(Simulation.GodAnswers(p), 0.0, 1.0);
+            Assert.InRange(Simulation.GodKind(p), -1.0, 1.0);
+        }
+
+        // Fading test: elevated belief decays toward baseline seed (~0.2) over time
+        var person = sim.Band.Members[0];
+        person.Expect.Absorb(Simulation.GodRealTopic, 0.9, 1.0, 0.2);
+        Assert.True(Simulation.GodReal(person) > 0.8);
+        double before = Simulation.GodReal(person);
+
+        sim.RunYears(1);
+        double after = Simulation.GodReal(person);
+        Assert.True(after < before, $"Expected belief to fade from {before}, got {after}");
+    }
 }

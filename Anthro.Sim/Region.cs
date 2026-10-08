@@ -104,7 +104,7 @@ namespace Anthro.Sim
                 {
                     var model = elders[Rng.Range(0, elders.Count)];
                     foreach (var kv in model.Expect.Snapshot())
-                        if (kv.Key.StartsWith("act:") || kv.Key.StartsWith("tactic:") || kv.Key.StartsWith("wed:") || kv.Key.StartsWith("bound:") || kv.Key.StartsWith("norm:"))
+                        if (kv.Key.StartsWith("act:") || kv.Key.StartsWith("tactic:") || kv.Key.StartsWith("wed:") || kv.Key.StartsWith("bound:") || kv.Key.StartsWith("norm:") || kv.Key.StartsWith("god:"))
                             p.Expect.Absorb(kv.Key, kv.Value + Rng.Normal(0, 0.1), 1, kv.Value);
                 }
             }

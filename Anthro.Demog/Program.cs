@@ -81,7 +81,7 @@ region.YearEnded += all =>
             var ms = region.CampsOf(t).SelectMany(c => c.Band.Members).Where(m => (now0 - m.BirthDay) / SimClock.DaysPerYear >= 15).ToList();
             if (ms.Count == 0) continue;
             double A(string k, double f) => ms.Average(m => m.Expect.Get(k, f));
-            Console.WriteLine($"    culture [{t.Name}]: violence kin {A("bound:kin", 0.8):F2} friend {A("bound:friend", 0.8):F2} stranger {A("bound:neutral", 0.8):F2} outsider {A("bound:outsider", 0.8):F2} | honour {A("norm:honour", 0):F2} peacemaking {A("norm:peacemaking", 0.5):F2} | rationing {A("norm:rationing", 0.6):F2} demand {A("norm:demand", 0.3):F2} elders {A("norm:elders", 1):F2} hunting {A("norm:hunting", 0.4):F2} plural {A("wed:more", 0):F2}");
+            Console.WriteLine($"    culture [{t.Name}]: violence kin {A("bound:kin", 0.8):F2} friend {A("bound:friend", 0.8):F2} stranger {A("bound:neutral", 0.8):F2} outsider {A("bound:outsider", 0.8):F2} | honour {A("norm:honour", 0):F2} peacemaking {A("norm:peacemaking", 0.5):F2} | rationing {A("norm:rationing", 0.6):F2} demand {A("norm:demand", 0.3):F2} elders {A("norm:elders", 1):F2} hunting {A("norm:hunting", 0.4):F2} plural {A("wed:more", 0):F2} | belief {ms.Count(Simulation.IsBeliever)}/{ms.Count} mean {ms.Average(Simulation.GodReal):F2}");
         }
     Console.WriteLine($"    seasons fed (mean/low10%): {string.Join(" ", seasonFed.Select(kv => $"{kv.Key} {kv.Value.Average():F2}/{kv.Value.OrderBy(x => x).ElementAt(kv.Value.Count / 10):F2}"))}");
     seasonFed.Clear();
