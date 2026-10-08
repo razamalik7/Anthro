@@ -332,4 +332,92 @@ public class SimulationTests
         // Witness observed failed plea -> doubt spreads (god:answers falls)
         Assert.True(Simulation.GodAnswers(witness) < initAnswers, "Expected witness god:answers to drop on failed plea");
     }
+
+    [Fact]
+    public void PowerOmenReinforcesBeliefInWitnesses()
+    {
+        var region = Region.Create(12);
+        var founder = region.Founders;
+        int cx = (int)founder.Band.CampX;
+        int cy = (int)founder.Band.CampY;
+        var witness = founder.Band.Members.First(founder.Grown);
+        double initBelief = Simulation.GodReal(witness);
+
+        region.CastOmen(cx, cy, "A burning comet in the twilight");
+        region.Step();
+
+        Assert.Equal(Region.StartFavorPool - 5.0, region.Favor);
+        double afterBelief = Simulation.GodReal(witness);
+        Assert.True(afterBelief > initBelief, $"Expected omen to raise god:real from {initBelief}, got {afterBelief}");
+        Assert.Contains(region.GodEvents, e => e.Kind == "Omen");
+    }
+
+    [Fact]
+    public void PowerBountyFlourishesPlantsAndAnimals()
+    {
+        var region = Region.Create(12);
+        int cx = 20, cy = 20;
+        var cell = region.World[cx, cy];
+        cell.PlantStock = 1.0;
+
+        // Cast plant bounty (cost 20)
+        region.CastBounty(cx, cy, animals: false);
+        region.Step();
+
+        Assert.Equal(Region.StartFavorPool - 20.0, region.Favor);
+        Assert.True(cell.PlantStock >= cell.PlantCapacity, $"Expected plant stock {cell.PlantStock} >= capacity {cell.PlantCapacity}");
+
+        // Cast animal bounty (cost 30)
+        region.CastBounty(cx, cy, animals: true);
+        region.Step();
+
+        Assert.Equal(Region.StartFavorPool - 50.0, region.Favor);
+        var nearbyAnimals = region.Ecology.Groups.Where(g => !g.Gone && g.Species.Huntable).ToList();
+        Assert.NotEmpty(nearbyAnimals);
+        Assert.All(nearbyAnimals.Where(g => Anthro.Sim.World.WorldMap.Distance(g.X, g.Y, cx, cy) <= Anthro.Sim.World.WorldMap.FromMeters(5000)),
+            g => Assert.True(g.Condition >= 0.99));
+    }
+
+    [Fact]
+    public void PowerWeatherModifiesClimateAndWinterSeverity()
+    {
+        var region = Region.Create(12);
+        region.Favor = 100.0;
+        double initSeverity = region.World.Climate.WinterSeverity;
+        double initOverride = region.World.Climate.SeasonOverride;
+
+        // Soften winter (delta +1.0, cost 60)
+        region.CastWeather(Season.Winter, 1.0);
+        region.Step();
+
+        Assert.Equal(40.0, region.Favor);
+        Assert.True(region.World.Climate.SeasonOverride > initOverride);
+        Assert.True(region.World.Climate.WinterSeverity < initSeverity, "Expected winter severity to decrease when softened");
+    }
+
+    [Fact]
+    public void PowerBlessedBirthBestowsGiftedChild()
+    {
+        var region = Region.Create(12);
+        var sim = region.Founders;
+        var mother = sim.Band.Members.First(p => p.Sex == Sex.Female && p.Partner != null && sim.Grown(p));
+        mother.DueDay = region.Clock.Day + 1; // Due tomorrow
+
+        region.CastBlessedBirth(mother);
+        region.Step();
+
+        Assert.Equal(Region.StartFavorPool - 40.0, region.Favor);
+        Assert.True(mother.BlessedNextBirth);
+
+        // Advance 2 days so birth happens
+        for (int h = 0; h < 48; h++) region.Step();
+
+        var child = mother.Children.LastOrDefault();
+        Assert.NotNull(child);
+        Assert.True(child.Blessed);
+        Assert.Equal(1.0, child.Health);
+        Assert.True(child.Body[(int)BodyTrait.Strength] >= 0.3);
+        Assert.True(child.Body[(int)BodyTrait.Immunity] >= 0.3);
+        Assert.True(mother.Alive, "Expected mother to survive complication-free blessed birth");
+    }
 }

@@ -143,6 +143,7 @@ namespace Anthro.Sim
         {
             int dayOfYear = Clock.DayOfYear;
             var climate = World.Climate;
+            if (Clock.DayOfSeason == 0) climate.SeasonOverride = 0;
             // Each cell has its own weather and regrows on its own, so the map is shared out across the processor's cores.
             using (Profiler.Measure("daily plants"))
                 System.Threading.Tasks.Parallel.For(0, World.Size, x => { for (int y = 0; y < World.Size; y++) World.Cells[x, y].DailyRegrow(climate, dayOfYear); });

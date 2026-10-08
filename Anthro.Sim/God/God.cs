@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Anthro.Sim.Core;
+using Anthro.Sim.Ecology;
 using Anthro.Sim.People;
+using Anthro.Sim.World;
 
 namespace Anthro.Sim
 {
@@ -89,12 +91,11 @@ namespace Anthro.Sim
                 {
                     Favor -= cmd.Cost;
                     cmd.Execute(this);
-                    GodEvents.Add(new GodEvent(Clock.Tick, cmd.PowerName, $"{cmd.PowerName} cast for cost {cmd.Cost:F1}"));
                 }
             }
         }
 
-        // Command stub implementations
+        // Power command implementations
         sealed class OmenCommand : IGodCommand
         {
             readonly int _x, _y;
@@ -104,7 +105,20 @@ namespace Anthro.Sim
             public double Cost => 5.0;
             public void Execute(Region region)
             {
-                // Stub in T2; hooked to witnesses in T4
+                if (Simulation.Off("god") || Simulation.Off("power") || Simulation.Off("omen")) return;
+                double radius = WorldMap.FromMeters(5000);
+                var witnesses = region.Bands
+                    .Where(b => WorldMap.Distance(b.Band.CampX, b.Band.CampY, _x, _y) <= radius)
+                    .SelectMany(b => b.Band.Members.Where(b.Grown))
+                    .ToList();
+
+                foreach (var w in witnesses)
+                {
+                    w.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.08, Simulation.GodReal(w));
+                }
+
+                region.Chronicle.Write(region.Clock, Importance.Notable, $"A striking omen appeared near ({_x}, {_y}): {_desc}.");
+                region.GodEvents.Add(new GodEvent(region.Clock.Tick, "Omen", _desc, _x, _y));
             }
         }
 
@@ -117,7 +131,47 @@ namespace Anthro.Sim
             public double Cost => _animals ? 30.0 : 20.0;
             public void Execute(Region region)
             {
-                // Stub in T2; hooked to cell ecology in T4
+                if (Simulation.Off("god") || Simulation.Off("power") || Simulation.Off("bounty")) return;
+                region.Reputation += 1.0;
+                if (!_animals)
+                {
+                    double r = WorldMap.FromMeters(3000);
+                    foreach (var c in region.World.Around(_x, _y, r))
+                    {
+                        c.PlantStock = Math.Max(c.PlantStock, c.PlantCapacity * 1.5);
+                        if (c.Terrain == Terrain.River)
+                            c.FishStock = Math.Max(c.FishStock, c.FishCapacity * 1.2);
+                        c.Wood = Math.Max(c.Wood, c.WoodCapacity);
+                    }
+                    region.Chronicle.Write(region.Clock, Importance.Notable, $"The earth brought forth an abundance of food near ({_x}, {_y}).");
+                    region.GodEvents.Add(new GodEvent(region.Clock.Tick, "BountyPlant", $"Plant bounty near ({_x}, {_y})", _x, _y));
+                }
+                else
+                {
+                    double r = WorldMap.FromMeters(5000);
+                    var nearbyGroups = region.Ecology.Groups
+                        .Where(g => !g.Gone && g.Species.Huntable && WorldMap.Distance(g.X, g.Y, _x, _y) <= r)
+                        .ToList();
+
+                    if (nearbyGroups.Count > 0)
+                    {
+                        foreach (var g in nearbyGroups)
+                        {
+                            g.Count = Math.Min(g.Species.GroupMax * 2, g.Count + Math.Max(3, g.Species.GroupMin));
+                            g.Condition = 1.0;
+                            g.Fear = 0;
+                            g.Shy = 0;
+                            g.TargetX = _x;
+                            g.TargetY = _y;
+                        }
+                    }
+                    else
+                    {
+                        region.Ecology.SpawnGroup(Species.Deer, _x, _y, Species.Deer.GroupMin * 2, region);
+                    }
+                    region.Chronicle.Write(region.Clock, Importance.Notable, $"Herds of game gathered near ({_x}, {_y}).");
+                    region.GodEvents.Add(new GodEvent(region.Clock.Tick, "BountyAnimal", $"Animal bounty near ({_x}, {_y})", _x, _y));
+                }
             }
         }
 
@@ -130,7 +184,34 @@ namespace Anthro.Sim
             public double Cost => 60.0;
             public void Execute(Region region)
             {
-                // Stub in T2; hooked to Climate in T4
+                if (Simulation.Off("god") || Simulation.Off("power") || Simulation.Off("weather")) return;
+                var climate = region.World.Climate;
+                climate.SeasonOverride += _delta * 3.0;
+
+                if (_season == Season.Winter)
+                {
+                    climate.WinterSeverity = Math.Max(-2.5, Math.Min(3.0, climate.WinterSeverity - _delta * 0.8));
+                }
+
+                if (_delta > 0)
+                {
+                    climate.Mast = Math.Max(climate.Mast, climate.Mast * (1.0 + 0.3 * _delta));
+                    climate.Berries = Math.Max(climate.Berries, climate.Berries * (1.0 + 0.3 * _delta));
+                    climate.Grain = Math.Max(climate.Grain, climate.Grain * (1.0 + 0.3 * _delta));
+                    climate.FishRun = Math.Max(climate.FishRun, climate.FishRun * (1.0 + 0.3 * _delta));
+                    region.Reputation += 1.5;
+                    region.Chronicle.Write(region.Clock, Importance.Notable, $"The heavens softened the season ({_season}).");
+                }
+                else
+                {
+                    climate.Mast = Math.Max(0.2, climate.Mast * (1.0 + 0.3 * _delta));
+                    climate.Berries = Math.Max(0.2, climate.Berries * (1.0 + 0.3 * _delta));
+                    climate.Grain = Math.Max(0.2, climate.Grain * (1.0 + 0.3 * _delta));
+                    climate.FishRun = Math.Max(0.2, climate.FishRun * (1.0 + 0.3 * _delta));
+                    region.Reputation -= 1.5;
+                    region.Chronicle.Write(region.Clock, Importance.Notable, $"A bitter harshness gripped the land ({_season}).");
+                }
+                region.GodEvents.Add(new GodEvent(region.Clock.Tick, "Weather", $"Weather changed for {_season} (delta {_delta:F1})"));
             }
         }
 
@@ -142,7 +223,14 @@ namespace Anthro.Sim
             public double Cost => 40.0;
             public void Execute(Region region)
             {
-                // Stub in T2; hooked to NewChild in T4
+                if (Simulation.Off("god") || Simulation.Off("power") || Simulation.Off("bless")) return;
+                _mother.BlessedNextBirth = true;
+                region.Reputation += 1.5;
+                region.Chronicle.Write(region.Clock, Importance.Notable, $"A divine blessing was laid upon {_mother.Name}'s unborn child.");
+                var band = region.BandOf(_mother);
+                int bx = band != null ? (int)band.Band.CampX : 0;
+                int by = band != null ? (int)band.Band.CampY : 0;
+                region.GodEvents.Add(new GodEvent(region.Clock.Tick, "BlessedBirth", $"Blessing on {_mother.Name}", bx, by));
             }
         }
 

@@ -139,6 +139,10 @@ namespace Anthro.Sim.People
         public bool Alive = true;
         public string? DeathCause;
         public long DueDay = -1;
+        /// <summary>Next child born to this mother is blessed by the god.</summary>
+        public bool BlessedNextBirth;
+        /// <summary>Born under the god's blessing.</summary>
+        public bool Blessed;
         /// <summary>Can no longer conceive: most often from an infection after a birth (secondary sterility).</summary>
         public bool Sterile;
         public Person? ExpectingWith;

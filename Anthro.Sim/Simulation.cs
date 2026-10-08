@@ -805,19 +805,36 @@ namespace Anthro.Sim
             mother.DueDay = -1;
             var father = mother.ExpectingWith ?? mother.Partner!;
             mother.ExpectingWith = null;
+            bool blessed = mother.BlessedNextBirth && !Off("god") && !Off("bless");
+            mother.BlessedNextBirth = false;
             var child = NewChild(mother, father, 0);
-            child.Health = 0.6 + 0.4 * mother.Satiety;
+            if (blessed)
+            {
+                child.Blessed = true;
+                child.Health = 1.0;
+                child.Body[(int)BodyTrait.Strength] = Math.Min(1.0, child.Body[(int)BodyTrait.Strength] + 0.3);
+                child.Body[(int)BodyTrait.Endurance] = Math.Min(1.0, child.Body[(int)BodyTrait.Endurance] + 0.3);
+                child.Body[(int)BodyTrait.Immunity] = Math.Min(1.0, child.Body[(int)BodyTrait.Immunity] + 0.3);
+                child.Mind[(int)MindTrait.Boldness] = Math.Min(1.0, child.Mind[(int)MindTrait.Boldness] + 0.3);
+                child.Mind[(int)MindTrait.Resilience] = Math.Min(1.0, child.Mind[(int)MindTrait.Resilience] + 0.3);
+                child.Mind[(int)MindTrait.Aptitude] = Math.Min(1.0, child.Mind[(int)MindTrait.Aptitude] + 0.3);
+            }
+            else
+            {
+                child.Health = 0.6 + 0.4 * mother.Satiety;
+            }
             ThisYear.Births++;
-            Chronicle.Write(Clock, Importance.Detail, $"{child.Name} was born to {mother.Name} and {father.Name}.");
+            Chronicle.Write(Clock, blessed ? Importance.Major : Importance.Detail,
+                blessed ? $"{child.Name} was born blessed by the god to {mother.Name} and {father.Name}." : $"{child.Name} was born to {mother.Name} and {father.Name}.");
             AfterBirth(mother, father);
 
             // Births go wrong more often for older, weaker or hungrier mothers.
             double age = mother.AgeYears(Clock);
-            double complication = 0.01 + Math.Max(0, age - 35) * 0.004 + (1 - mother.Health) * 0.05 + (1 - mother.Satiety) * 0.03;
+            double complication = blessed ? 0.0 : 0.01 + Math.Max(0, age - 35) * 0.004 + (1 - mother.Health) * 0.05 + (1 - mother.Satiety) * 0.03;
             // An infection after the birth can leave a woman unable to conceive again: in populations
             // without medicine about one woman in ten is sterile by her mid-thirties.
-            if (Rng.Chance(0.025 + complication)) mother.Sterile = true;
-            if (Rng.Chance(complication))
+            if (!blessed && Rng.Chance(0.025 + complication)) mother.Sterile = true;
+            if (!blessed && Rng.Chance(complication))
             {
                 // Bleeding and infection after birth: about half of serious complications kill, which
                 // comes to roughly one death per hundred births, as among real foragers.
