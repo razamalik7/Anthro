@@ -655,6 +655,23 @@ namespace Anthro.Sim
             bool here = Band.Members.Contains(attacker) && Band.Members.Contains(target);
             // Where a people settles grudges one on one, the two fight it out and the rest watch.
             bool duel = here && Rng.Chance((Duel(attacker) + Duel(target)) / 2);
+            if (!Off("god") && !Off("nudge"))
+            {
+                if (attacker.TryConsumeNudge("duel", out var nA))
+                {
+                    if (nA == "peace" || nA == "no") duel = false;
+                    else if (nA == "fight" || nA == "duel" || nA == "yes") duel = true;
+                }
+                else if (target.TryConsumeNudge("duel", out var nT))
+                {
+                    if (nT == "peace" || nT == "no") duel = false;
+                    else if (nT == "fight" || nT == "duel" || nT == "yes") duel = true;
+                }
+            }
+            if (duel && !Off("god"))
+            {
+                Region.GodEvents.Add(new GodEvent(Clock.Tick, "ForkDuel", $"{attacker.Name} challenged {target.Name} to a duel", (int)Band.CampX, (int)Band.CampY));
+            }
             Fight(new[] { attacker }, new[] { target }, answers, overFood, inCamp: here && !duel, kind: duel ? "duel" : "quarrel");
         }
 

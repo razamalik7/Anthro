@@ -221,7 +221,23 @@ namespace Anthro.Sim
         /// </summary>
         public bool WouldPair(Person a, Person b, Simulation aBand, Simulation bBand)
         {
-            if (!CouldPair(a, b) || Math.Min(a.GetAffinity(b), b.GetAffinity(a)) < 0.2) return false;
+            if (!CouldPair(a, b)) return false;
+
+            if (!Off("god") && !Off("nudge"))
+            {
+                if (a.TryConsumeNudge("marry", out var nA))
+                {
+                    if (nA == "no" || nA == "refuse") return false;
+                    if (nA == "yes" || nA == "pair") return true;
+                }
+                if (b.TryConsumeNudge("marry", out var nB))
+                {
+                    if (nB == "no" || nB == "refuse") return false;
+                    if (nB == "yes" || nB == "pair") return true;
+                }
+            }
+
+            if (Math.Min(a.GetAffinity(b), b.GetAffinity(a)) < 0.2) return false;
             bool Best(Person p, Person o, Simulation pb)
             {
                 double mine = Desire(p, o, pb);
@@ -229,7 +245,12 @@ namespace Anthro.Sim
                     if (other != o && CouldPair(p, other) && Desire(p, other, pb) > mine + 0.05) return false;
                 return true;
             }
-            return Best(a, b, aBand) && Best(b, a, bBand);
+            bool willPair = Best(a, b, aBand) && Best(b, a, bBand);
+            if (willPair && !Off("god"))
+            {
+                Region.GodEvents.Add(new GodEvent(Clock.Tick, "ForkPair", $"{a.Name} and {b.Name} are considering pairing", (int)Band.CampX, (int)Band.CampY));
+            }
+            return willPair;
         }
 
         /// <summary>
@@ -240,17 +261,29 @@ namespace Anthro.Sim
         {
             partner ??= p.Partner;
             if (partner == null || !p.Spouses.Contains(partner) || !partner.Alive || !Band.Members.Contains(p) || !Band.Members.Contains(partner) || !Grown(p)) return;
+
+            bool free = drawnTo != null && !drawnTo.Married && drawnTo.Sex != p.Sex && !p.IsKin(drawnTo) && Grown(drawnTo)
+                        && Band.Members.Contains(drawnTo)
+                        && !Band.Members.Any(o => o != p && CouldPair(drawnTo, o) && Desire(drawnTo, o, this) > Desire(drawnTo, p, this));
+
+            if (!Off("god") && !Off("nudge"))
+            {
+                if (p.TryConsumeNudge("leave", out var nL))
+                {
+                    if (nL == "stay" || nL == "no") return;
+                    if (nL == "leave" || nL == "yes") { Separate(p, partner, free ? drawnTo : null); return; }
+                }
+            }
+
             int young = p.Children.Count(c => c.Alive && c.AgeYears(Clock) < 10);
             // A pair bond runs deeper than friendship, and deepens with the years together.
             double years = Math.Min(10, (Clock.Day - p.WedOn[partner]) / (double)SimClock.DaysPerYear);
             double stay = p.GetAffinity(partner) * (1.2 + years * 0.05) + young * 0.3 + p.M(MindTrait.Warmth) * 0.2 * p.W(Drive.Family) - p.GetGrievance(partner) * 0.1
                           - strain;
-            // The other has to want them back, as their best choice among those free or nearly so.
-            bool free = drawnTo != null && !drawnTo.Married && drawnTo.Sex != p.Sex && !p.IsKin(drawnTo) && Grown(drawnTo)
-                        && Band.Members.Contains(drawnTo)
-                        && !Band.Members.Any(o => o != p && CouldPair(drawnTo, o) && Desire(drawnTo, o, this) > Desire(drawnTo, p, this));
             double go = free ? Desire(p, drawnTo!, this) : 0;
             if (go <= stay) return;
+            if (!Off("god"))
+                Region.GodEvents.Add(new GodEvent(Clock.Tick, "ForkLeave", $"{p.Name} is leaving {partner.Name}", (int)Band.CampX, (int)Band.CampY));
             Separate(p, partner, free ? drawnTo : null);
         }
 

@@ -87,7 +87,7 @@ namespace Anthro.Sim
             EnqueueGodCommand(new ForkNudgeCommand(person, choice));
 
         /// <summary>Applied at the start of an hour step before any band actions.</summary>
-        internal void ApplyGodCommands()
+        public void ApplyGodCommands()
         {
             if (Simulation.Off("god") || GodFaded)
             {
@@ -268,7 +268,34 @@ namespace Anthro.Sim
             public double Cost => 10.0;
             public void Execute(Region region)
             {
-                // Stub in T2; hooked to Decider/Family in T8
+                if (Simulation.Off("god") || Simulation.Off("power") || Simulation.Off("nudge")) return;
+                string fork = "general";
+                string val = _choice;
+                if (_choice.Contains(":"))
+                {
+                    var parts = _choice.Split(':');
+                    fork = parts[0].Trim().ToLowerInvariant();
+                    val = parts[1].Trim().ToLowerInvariant();
+                }
+                else
+                {
+                    val = _choice.Trim().ToLowerInvariant();
+                }
+
+                _person.Nudges[fork] = val;
+                if (fork == "general")
+                {
+                    _person.Nudges["marry"] = val;
+                    _person.Nudges["leave"] = val;
+                    _person.Nudges["duel"] = val;
+                    _person.Nudges["raid"] = val;
+                }
+
+                region.Chronicle.Write(region.Clock, Importance.Detail, $"An unseen whisper guided {_person.Name}'s choice ({_choice}).");
+                var band = region.BandOf(_person);
+                int bx = band != null ? (int)band.Band.CampX : 0;
+                int by = band != null ? (int)band.Band.CampY : 0;
+                region.GodEvents.Add(new GodEvent(region.Clock.Tick, "ForkNudge", $"{_person.Name} nudged: {_choice}", bx, by));
             }
         }
     }

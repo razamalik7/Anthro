@@ -66,6 +66,19 @@ namespace Anthro.Sim.People
         /// </summary>
         public readonly Dictionary<string, double> Learning = new Dictionary<string, double>();
         public readonly Expectations Expect = new Expectations();
+        /// <summary>Active divine nudges at life branch points (T8): fork -> choice.</summary>
+        public readonly Dictionary<string, string> Nudges = new Dictionary<string, string>();
+
+        public bool TryConsumeNudge(string fork, out string choice)
+        {
+            if (Nudges.TryGetValue(fork, out choice))
+            {
+                Nudges.Remove(fork);
+                return true;
+            }
+            choice = "";
+            return false;
+        }
         /// <summary>Fondness for each person (0 to 1). Grows with time together; fades without it; drops with conflict.</summary>
         public readonly Dictionary<int, double> Affinity = new Dictionary<int, double>();
         /// <summary>

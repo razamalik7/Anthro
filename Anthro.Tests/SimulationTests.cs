@@ -597,5 +597,61 @@ public class SimulationTests
         double kind = Simulation.GodKind(adult);
         Assert.True(kind < 0.0, $"Cruel displays should cause god:kind to become negative (fear), got {kind}");
     }
+
+    [Fact]
+    public void ForkNudgeCanPreventOrForcePairing()
+    {
+        var region = Region.Create(27);
+        var sim = region.Bands[0];
+        var male = sim.Band.Members.First(m => sim.Grown(m) && m.Sex == Sex.Male);
+        var female = sim.Band.Members.First(m => sim.Grown(m) && m.Sex == Sex.Female);
+        male.Spouses.Clear();
+        female.Spouses.Clear();
+        male.Mother = male.Father = null;
+        female.Mother = female.Father = null;
+        male.Children.Clear();
+        female.Children.Clear();
+        Assert.True(sim.CouldPair(male, female));
+
+        // Nudge to reject pairing
+        region.CastForkNudge(male, "marry:no");
+        region.ApplyGodCommands();
+
+        Assert.Equal(Region.StartFavorPool - 10.0, region.Favor);
+        Assert.False(sim.WouldPair(male, female, sim, sim), "Nudge should have prevented pairing");
+
+        // Nudge to force/encourage pairing
+        region.CastForkNudge(male, "marry:yes");
+        region.ApplyGodCommands();
+
+        Assert.Equal(Region.StartFavorPool - 20.0, region.Favor);
+        Assert.True(sim.WouldPair(male, female, sim, sim), "Nudge should have encouraged pairing");
+    }
+
+    [Fact]
+    public void ForkNudgeCanInfluenceLeaving()
+    {
+        var region = Region.Create(28);
+        var sim = region.Bands[0];
+        var adult = sim.Band.Members.First(m => sim.Grown(m) && m.Partner != null);
+        var partner = adult.Partner!;
+
+        // 1. Force leaving with nudge even when strain is 0
+        region.CastForkNudge(adult, "leave:yes");
+        region.ApplyGodCommands();
+        sim.ConsiderLeaving(adult, null, 0.0);
+        Assert.DoesNotContain(partner, adult.Spouses);
+
+        // Re-marry them to test preventing leaving
+        Person.Wed(adult, partner, sim.Clock.Day);
+        Assert.Contains(partner, adult.Spouses);
+
+        // 2. Prevent leaving with nudge even under extreme strain
+        region.CastForkNudge(adult, "leave:stay");
+        region.ApplyGodCommands();
+        sim.ConsiderLeaving(adult, null, 100.0);
+        Assert.Contains(partner, adult.Spouses);
+    }
 }
+
 

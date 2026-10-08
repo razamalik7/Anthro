@@ -109,7 +109,23 @@ namespace Anthro.Sim
         bool Joins(Person p, Person leader, double value, Verb verb)
         {
             if (!Grown(p) || p.Health < 0.4 || !AwakeInCamp(p) || double.IsNegativeInfinity(value)) return false;
-            return value + Pull(p, leader) + Rng.Normal(0, 0.1) > Decider.BestAlternative(this, p, verb);
+
+            if (!Off("god") && !Off("nudge"))
+            {
+                string key = verb == Verb.Rally ? "rally" : "raid";
+                if (p.TryConsumeNudge(key, out var nJ) || p.TryConsumeNudge("raid", out nJ))
+                {
+                    if (nJ == "refuse" || nJ == "no" || nJ == "stay") return false;
+                    if (nJ == "join" || nJ == "yes") return true;
+                }
+            }
+
+            bool willJoin = value + Pull(p, leader) + Rng.Normal(0, 0.1) > Decider.BestAlternative(this, p, verb);
+            if (willJoin && !Off("god"))
+            {
+                Region.GodEvents.Add(new GodEvent(Clock.Tick, "ForkRaid", $"{p.Name} decided to join {leader.Name}'s {verb}", (int)Band.CampX, (int)Band.CampY));
+            }
+            return willJoin;
         }
 
         /// <summary>
