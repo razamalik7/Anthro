@@ -1,0 +1,3735 @@
+{
+ "version": 1,
+ "note": "Discovery web for milestone 1. Each tile is a family of stages; each stage has its own needs, effects, and optional accident situation. Refs point at stage ids (tile.stage). 'any': true means any one ref is enough.",
+ "tiles": [
+  {
+   "id": "fire",
+   "name": "Fire",
+   "col": 0,
+   "kind": "Known at start",
+   "sum": "Modern humans arrive able to make and keep fire. Mastery grows from there.",
+   "stages": [
+    {
+     "id": "fire.make",
+     "name": "Making and keeping fire",
+     "known": true,
+     "does": "Warmth, light, cooking, keeps predators back.",
+     "short": "Make fire"
+    },
+    {
+     "id": "fire.hearth",
+     "name": "Built hearths",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "making fire",
+       "refs": [
+        "fire.make"
+       ]
+      },
+      {
+       "t": "Way of life",
+       "text": "staying two weeks or more in one spot"
+      },
+      {
+       "t": "Material",
+       "text": "flat stones to ring the fire"
+      }
+     ],
+     "does": "Steady cooking heat; a place people gather and talk.",
+     "short": "Hearths",
+     "sim": {
+      "during": [
+       "Cook",
+       "Rest"
+      ],
+      "way": "settled",
+      "interest": "Fire",
+      "skill": "Fire"
+     }
+    },
+    {
+     "id": "fire.hot",
+     "name": "High-heat fires",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "built hearths",
+       "refs": [
+        "fire.hearth"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "dense hardwood or plenty of fuel"
+      },
+      {
+       "t": "Pressure",
+       "text": "a job that needs real heat: hardening wood, treating flint"
+      },
+      {
+       "t": "Person",
+       "text": "interested in fire, practiced at tending it"
+      }
+     ],
+     "does": "Hot enough to fire clay and heat-treat flint.",
+     "accident": "A hearth dug into a sheltered pit runs far hotter than usual.",
+     "short": "High heat",
+     "sim": {
+      "during": [
+       "Cook",
+       "Knap"
+      ],
+      "materials": [
+       "forest"
+      ],
+      "interest": "Fire",
+      "skill": "Fire"
+     }
+    },
+    {
+     "id": "fire.land",
+     "name": "Burning the land",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "making fire",
+       "refs": [
+        "fire.make"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "dry grassland"
+      },
+      {
+       "t": "Pressure",
+       "text": "grazing herds that come back for fresh shoots"
+      },
+      {
+       "t": "Person",
+       "text": "bold"
+      }
+     ],
+     "does": "Burned clearings draw game and help wild grain grow.",
+     "accident": "After a wildfire (natural, or your lightning), herds return to the green shoots.",
+     "short": "Burn the land",
+     "sim": {
+      "during": [
+       "Forage",
+       "Hunt"
+      ],
+      "materials": [
+       "grassland"
+      ],
+      "pressures": [
+       "flight"
+      ],
+      "interest": "Fire",
+      "trait": "Boldness"
+     }
+    },
+    {
+     "id": "fire.torch",
+     "name": "Torches",
+     "short": "Torches",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "making fire",
+       "refs": [
+        "fire.make"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "resin-rich wood or animal fat"
+      },
+      {
+       "t": "Pressure",
+       "text": "dark places or night: deep caves, predators at night"
+      }
+     ],
+     "does": "Light to carry: deep caves, night watches, scaring predators.",
+     "accident": "A resin-soaked branch pulled from the fire burns long and bright.",
+     "sim": {
+      "during": [
+       "Rest",
+       "Socialize"
+      ],
+      "materials": [
+       "forest"
+      ],
+      "pressures": [
+       "dark",
+       "danger"
+      ],
+      "interest": "Fire"
+     }
+    },
+    {
+     "id": "fire.lamp",
+     "name": "Stone fat lamps",
+     "short": "Fat lamps",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "torches and pounding (to hollow a stone)",
+       "refs": [
+        "fire.torch",
+        "grind.pound"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "animal fat"
+      }
+     ],
+     "does": "Steady light deep inside caves and shelters.",
+     "sim": {
+      "during": [
+       "Cook"
+      ],
+      "materials": [
+       "fat"
+      ],
+      "interest": "Fire"
+     }
+    }
+   ]
+  },
+  {
+   "id": "knap",
+   "name": "Knapping",
+   "col": 0,
+   "kind": "Known at start",
+   "sum": "Shaping stone into edges. Skill level matters for everything downstream.",
+   "stages": [
+    {
+     "id": "knap.flake",
+     "name": "Flakes and scrapers",
+     "known": true,
+     "does": "Cutting, scraping hides, carving wood.",
+     "short": "Flakes"
+    },
+    {
+     "id": "knap.blade",
+     "name": "Long blades",
+     "known": true,
+     "does": "Better knives; blanks for points and awls.",
+     "short": "Blades"
+    },
+    {
+     "id": "knap.haft",
+     "name": "Hafted points",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "long blades",
+       "refs": [
+        "knap.blade"
+       ]
+      },
+      {
+       "t": "Binding",
+       "text": "sinew thread, plant twine, or tree resin",
+       "refs": [
+        "cord.sinew",
+        "cord.twine"
+       ],
+       "any": true
+      },
+      {
+       "t": "Person",
+       "text": "skilled knapper"
+      }
+     ],
+     "does": "Stone points fixed to shafts: spears, later arrows.",
+     "short": "Hafted points",
+     "sim": {
+      "during": [
+       "Knap"
+      ],
+      "skill": "Knapping",
+      "interest": "StoneEarth"
+     }
+    },
+    {
+     "id": "knap.heat",
+     "name": "Heat-treated flint",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "high-heat fires",
+       "refs": [
+        "fire.hot"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "flint"
+      },
+      {
+       "t": "Person",
+       "text": "curious knapper"
+      }
+     ],
+     "does": "Flint flakes cleaner; finer, sharper points.",
+     "accident": "Flint left in the hearth overnight flakes far better the next day.",
+     "short": "Heat-treated",
+     "sim": {
+      "during": [
+       "Knap"
+      ],
+      "materials": [
+       "flint"
+      ],
+      "interest": "StoneEarth",
+      "trait": "Curiosity"
+     }
+    }
+   ]
+  },
+  {
+   "id": "bone",
+   "name": "Bone & antler",
+   "col": 1,
+   "kind": "Technology",
+   "sum": "Butchering leaves bone and antler: tough, carvable material for points, needles and hooks.",
+   "stages": [
+    {
+     "id": "bone.awl",
+     "name": "Bone awls and points",
+     "short": "Bone awls",
+     "needs": [
+      {
+       "t": "Material",
+       "text": "bone from butchered game",
+       "refs": [
+        "spear.wood"
+       ]
+      },
+      {
+       "t": "Knowledge",
+       "text": "long blades to cut and scrape it",
+       "refs": [
+        "knap.blade"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "patient, interested in animals"
+      }
+     ],
+     "does": "Piercing hides; simple points.",
+     "accident": "A splinter of split bone turns out sharper and tougher than expected.",
+     "sim": {
+      "during": [
+       "Knap",
+       "Cook"
+      ],
+      "materials": [
+       "bone"
+      ],
+      "interest": "Animals",
+      "trait": "Patience"
+     }
+    },
+    {
+     "id": "bone.point",
+     "name": "Bone and antler spear points",
+     "short": "Antler points",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "bone awls and points",
+       "refs": [
+        "bone.awl"
+       ]
+      },
+      {
+       "t": "Binding",
+       "text": "sinew or resin",
+       "refs": [
+        "cord.sinew"
+       ]
+      }
+     ],
+     "does": "Spear and arrow points where flint is scarce.",
+     "sim": {
+      "during": [
+       "Knap"
+      ],
+      "materials": [
+       "bone"
+      ],
+      "interest": "Animals"
+     }
+    },
+    {
+     "id": "bone.needle",
+     "name": "Eyed needles",
+     "short": "Eyed needles",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "bone awls",
+       "refs": [
+        "bone.awl"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "dexterous, practiced"
+      },
+      {
+       "t": "Pressure",
+       "text": "clothes that need fine, tight seams"
+      }
+     ],
+     "does": "Fine sewing: fitted clothes and footwear.",
+     "sim": {
+      "during": [
+       "Knap",
+       "Rest"
+      ],
+      "materials": [
+       "bone"
+      ],
+      "pressures": [
+       "cold"
+      ],
+      "skill": "Knapping"
+     }
+    },
+    {
+     "id": "bone.hook",
+     "name": "Bone fish hooks",
+     "short": "Fish hooks",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "bone awls",
+       "refs": [
+        "bone.awl"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "fish in water too deep to spear"
+      }
+     ],
+     "does": "Hook-and-line fishing.",
+     "sim": {
+      "during": [
+       "Fish",
+       "Knap"
+      ],
+      "materials": [
+       "bone",
+       "river"
+      ],
+      "interest": "Water"
+     }
+    },
+    {
+     "id": "bone.harpoon",
+     "name": "Barbed harpoons",
+     "short": "Harpoons",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "antler points",
+       "refs": [
+        "bone.point"
+       ]
+      },
+      {
+       "t": "Knowledge",
+       "text": "two-ply string as a tether",
+       "refs": [
+        "cord.ply"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "big fish or sea mammals"
+      }
+     ],
+     "does": "Large fish and seals; coastal life becomes rich.",
+     "sim": {
+      "during": [
+       "Fish"
+      ],
+      "materials": [
+       "bone",
+       "river"
+      ],
+      "interest": "Water"
+     }
+    }
+   ]
+  },
+  {
+   "id": "wood",
+   "name": "Woodworking",
+   "col": 1,
+   "kind": "Technology",
+   "sum": "From whittling spears to felling trees and hollowing boats.",
+   "stages": [
+    {
+     "id": "wood.shape",
+     "name": "Shaping wood with stone",
+     "short": "Shaping wood",
+     "known": true,
+     "does": "Spears, digging sticks, handles."
+    },
+    {
+     "id": "wood.axe",
+     "name": "Hafted stone axes",
+     "short": "Stone axes",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "hafted points",
+       "refs": [
+        "knap.haft"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "hard, tough stone"
+      },
+      {
+       "t": "Pressure",
+       "text": "need for big timber or firewood: shelters, long winters"
+      }
+     ],
+     "does": "Felling small trees; poles and timber.",
+     "sim": {
+      "during": [
+       "GatherWood",
+       "Knap"
+      ],
+      "materials": [
+       "hills"
+      ],
+      "pressures": [
+       "cold"
+      ]
+     }
+    },
+    {
+     "id": "wood.polish",
+     "name": "Ground and polished axes",
+     "short": "Polished axes",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "stone axes and grinding slabs",
+       "refs": [
+        "wood.axe",
+        "grind.slab"
+       ]
+      },
+      {
+       "t": "Way of life",
+       "text": "long stays",
+       "refs": [
+        "camp.long"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "patient"
+      }
+     ],
+     "does": "Axes that do not shatter. Big trees come down.",
+     "sim": {
+      "during": [
+       "Knap"
+      ],
+      "way": "settled-long",
+      "trait": "Patience",
+      "interest": "Wood"
+     }
+    },
+    {
+     "id": "wood.canoe",
+     "name": "Dugout canoes",
+     "short": "Dugout canoe",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "polished axes and high-heat fires (burn and scrape)",
+       "refs": [
+        "wood.polish",
+        "fire.hot"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "a big straight tree, water to travel"
+      },
+      {
+       "t": "Pressure",
+       "text": "food or people across the water"
+      },
+      {
+       "t": "Person",
+       "text": "bold, interested in water"
+      }
+     ],
+     "does": "Real boats. Crossing to other islands starts here.",
+     "sim": {
+      "during": [
+       "Fish"
+      ],
+      "materials": [
+       "river",
+       "forest"
+      ],
+      "interest": "Water",
+      "trait": "Boldness",
+      "rate": 0.5
+     }
+    }
+   ]
+  },
+  {
+   "id": "spear",
+   "name": "Spear",
+   "col": 0,
+   "kind": "Known at start",
+   "sum": "Hunting and defense. Armed adults also keep wolves at a distance.",
+   "stages": [
+    {
+     "id": "spear.wood",
+     "name": "Fire-hardened wooden spear",
+     "known": true,
+     "does": "Thrusting and short throws; counts toward band strength.",
+     "short": "Wooden spear"
+    },
+    {
+     "id": "spear.stone",
+     "name": "Stone-tipped spear",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "hafted points",
+       "refs": [
+        "knap.haft"
+       ]
+      }
+     ],
+     "does": "Bigger game; more band strength.",
+     "short": "Stone tip",
+     "sim": {
+      "during": [
+       "Knap",
+       "Hunt"
+      ],
+      "skill": "Knapping",
+      "interest": "StoneEarth"
+     }
+    },
+    {
+     "id": "spear.light",
+     "name": "Light throwing spears",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "wooden spear",
+       "refs": [
+        "spear.wood"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "straight saplings"
+      },
+      {
+       "t": "Pressure",
+       "text": "fast prey that won't let hunters close"
+      },
+      {
+       "t": "Person",
+       "text": "skilled hunter"
+      }
+     ],
+     "does": "Longer throws; the base for the spear-thrower.",
+     "short": "Light spears",
+     "sim": {
+      "during": [
+       "Hunt"
+      ],
+      "materials": [
+       "forest"
+      ],
+      "pressures": [
+       "flight"
+      ],
+      "skill": "Hunting"
+     }
+    }
+   ]
+  },
+  {
+   "id": "trap",
+   "name": "Trapping",
+   "col": 1,
+   "kind": "Technology",
+   "sum": "Catching animals while you sleep. Patient hunters and children often find it first.",
+   "stages": [
+    {
+     "id": "trap.trail",
+     "name": "Reading game trails",
+     "short": "Game trails",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "seasonal rounds and hunting",
+       "refs": [
+        "forage.rounds",
+        "spear.wood"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "patient, interested in animals"
+      }
+     ],
+     "does": "Knowing exactly where small animals pass.",
+     "sim": {
+      "during": [
+       "Hunt",
+       "Forage"
+      ],
+      "interest": "Animals",
+      "trait": "Patience"
+     }
+    },
+    {
+     "id": "trap.snare",
+     "name": "Snares",
+     "short": "Snares",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "game trails",
+       "refs": [
+        "trap.trail"
+       ]
+      },
+      {
+       "t": "Thread",
+       "text": "sinew or plant twine",
+       "refs": [
+        "cord.sinew",
+        "cord.twine"
+       ],
+       "any": true
+      },
+      {
+       "t": "Pressure",
+       "text": "hunters away, small game around camp"
+      }
+     ],
+     "does": "Rabbits and birds caught without anyone there.",
+     "accident": "An animal tangles itself in a loop of cord left on a trail.",
+     "sim": {
+      "during": [
+       "Forage",
+       "Hunt"
+      ],
+      "materials": [
+       "game"
+      ],
+      "pressures": [
+       "hunger"
+      ],
+      "interest": "Animals"
+     }
+    },
+    {
+     "id": "trap.dead",
+     "name": "Deadfalls and pits",
+     "short": "Deadfalls",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "game trails",
+       "refs": [
+        "trap.trail"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "larger game or predators near camp"
+      },
+      {
+       "t": "Person",
+       "text": "patient"
+      }
+     ],
+     "does": "Bigger catches; predator control adds band strength.",
+     "accident": "A rockfall pins an animal on a trail.",
+     "sim": {
+      "during": [
+       "Hunt"
+      ],
+      "pressures": [
+       "danger"
+      ],
+      "interest": "Animals",
+      "trait": "Patience"
+     }
+    },
+    {
+     "id": "trap.spring",
+     "name": "Spring-pole snares",
+     "short": "Spring snares",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "snares",
+       "refs": [
+        "trap.snare"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "springy saplings"
+      },
+      {
+       "t": "Person",
+       "text": "curious, inventive"
+      }
+     ],
+     "does": "Snares that lift the catch out of reach. The stored-energy idea behind the bow.",
+     "sim": {
+      "during": [
+       "Forage"
+      ],
+      "materials": [
+       "forest"
+      ],
+      "trait": "Curiosity"
+     }
+    }
+   ]
+  },
+  {
+   "id": "forage",
+   "name": "Foraging",
+   "col": 0,
+   "kind": "Known at start",
+   "sum": "Knowing which plants feed you, where and when.",
+   "stages": [
+    {
+     "id": "forage.rounds",
+     "name": "Patches and seasonal rounds",
+     "known": true,
+     "does": "The band moves through the year to where food is.",
+     "short": "Seasonal rounds"
+    },
+    {
+     "id": "forage.lore",
+     "name": "Plant lore",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "shared stories, so lore outlives one person",
+       "refs": [
+        "lang.story"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "interested in plants; elders still alive to teach"
+      }
+     ],
+     "does": "Medicines (fewer deaths), poisons, knowing which plants make good fiber.",
+     "short": "Plant lore",
+     "sim": {
+      "during": [
+       "Forage",
+       "Socialize"
+      ],
+      "interest": "Plants",
+      "skill": "Foraging"
+     }
+    },
+    {
+     "id": "forage.nuts",
+     "name": "Leaching nuts and acorns",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "seasonal rounds",
+       "refs": [
+        "forage.rounds"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "oaks or nut trees, running water"
+      },
+      {
+       "t": "Pressure",
+       "text": "a hungry autumn"
+      },
+      {
+       "t": "Person",
+       "text": "patient"
+      }
+     ],
+     "does": "Bitter nuts become a big, storable food.",
+     "accident": "Acorns dropped in a stream lose their bitterness.",
+     "short": "Leached nuts",
+     "sim": {
+      "during": [
+       "Forage"
+      ],
+      "materials": [
+       "nuts",
+       "river"
+      ],
+      "pressures": [
+       "hunger"
+      ],
+      "trait": "Patience"
+     }
+    }
+   ]
+  },
+  {
+   "id": "lang",
+   "name": "Language",
+   "col": 0,
+   "kind": "Known at start",
+   "sum": "Full spoken language from day one. Its stages decide how far and how faithfully knowledge and beliefs travel.",
+   "stages": [
+    {
+     "id": "lang.speech",
+     "name": "Everyday speech and teaching",
+     "known": true,
+     "does": "Skills taught by showing plus words; every discovery adds new words.",
+     "short": "Speech"
+    },
+    {
+     "id": "lang.story",
+     "name": "Shared stories",
+     "needs": [
+      {
+       "t": "Event",
+       "text": "a remembered event retold by several people: a great hunt, a disaster, an omen"
+      },
+      {
+       "t": "Pressure",
+       "text": "long evenings together, such as winters around the fire"
+      },
+      {
+       "t": "Person",
+       "text": "sociable storyteller or elder"
+      }
+     ],
+     "does": "Beliefs and lessons outlive the people who lived them; less drift between generations. Myths about you start here.",
+     "short": "Stories",
+     "sim": {
+      "during": [
+       "Socialize"
+      ],
+      "pressures": [
+       "winter",
+       "death"
+      ],
+      "trait": "Sociability"
+     }
+    },
+    {
+     "id": "lang.ritual",
+     "name": "Ritual speech and song",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "shared stories",
+       "refs": [
+        "lang.story"
+       ]
+      },
+      {
+       "t": "Belief",
+       "text": "rites for the dead, or a belief built on omens",
+       "refs": [
+        "burial.rites"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "interested in spirits"
+      }
+     ],
+     "does": "Rituals hit harder; belief strength and group cohesion rise.",
+     "short": "Ritual song",
+     "sim": {
+      "during": [
+       "Socialize"
+      ],
+      "pressures": [
+       "death"
+      ],
+      "interest": "Spirits"
+     }
+    },
+    {
+     "id": "lang.count",
+     "name": "Counting and tally marks",
+     "needs": [
+      {
+       "t": "Pressure",
+       "text": "keeping track of stores or of moons until a season",
+       "refs": [
+        "store.pit",
+        "store.basket"
+       ],
+       "any": true
+      },
+      {
+       "t": "Material",
+       "text": "bone or wood to notch"
+      },
+      {
+       "t": "Person",
+       "text": "patient"
+      }
+     ],
+     "does": "Tracking seasons and stores; helps grain timing; groundwork for trade later.",
+     "short": "Tally marks",
+     "sim": {
+      "during": [
+       "Preserve",
+       "Socialize"
+      ],
+      "trait": "Patience"
+     }
+    }
+   ]
+  },
+  {
+   "id": "cord",
+   "name": "Cordage",
+   "col": 1,
+   "kind": "Technology",
+   "sum": "Two routes in. Sinew cultures sew and string bows; plant cultures fish, build and net. Both opens everything.",
+   "stages": [
+    {
+     "id": "cord.sinew",
+     "name": "Sinew thread",
+     "variant": "hunter route",
+     "needs": [
+      {
+       "t": "Material",
+       "text": "sinew from butchered game",
+       "refs": [
+        "spear.wood"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "things that need binding: hafting, mending"
+      },
+      {
+       "t": "Person",
+       "text": "dexterous, interested in animals"
+      }
+     ],
+     "does": "Sewing, strong bowstrings, tight lashings.",
+     "accident": "Wet sinew wrapped around a cracked handle dries rock-hard.",
+     "short": "Sinew thread",
+     "sim": {
+      "during": [
+       "Knap",
+       "Cook"
+      ],
+      "materials": [
+       "sinew"
+      ],
+      "interest": "Animals"
+     }
+    },
+    {
+     "id": "cord.twine",
+     "name": "Plant twine",
+     "variant": "gatherer route",
+     "needs": [
+      {
+       "t": "Material",
+       "text": "fibrous plants: nettle, reeds, bark"
+      },
+      {
+       "t": "Pressure",
+       "text": "big foraging hauls to carry and tie"
+      },
+      {
+       "t": "Person",
+       "text": "dexterous, interested in plants"
+      }
+     ],
+     "does": "Basket lashing, fishing lines, long cords.",
+     "accident": "Stems absently twisted during a rest hold together under pull.",
+     "short": "Plant twine",
+     "sim": {
+      "during": [
+       "Forage"
+      ],
+      "materials": [
+       "reeds"
+      ],
+      "pressures": [
+       "carry"
+      ],
+      "interest": "Plants"
+     }
+    },
+    {
+     "id": "cord.ply",
+     "name": "Two-ply string",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "either kind of thread",
+       "refs": [
+        "cord.sinew",
+        "cord.twine"
+       ],
+       "any": true
+      },
+      {
+       "t": "Person",
+       "text": "practiced cord-maker"
+      }
+     ],
+     "does": "Stronger everything: bowstrings, hafting, lines.",
+     "short": "Two-ply",
+     "sim": {
+      "during": [
+       "Rest",
+       "Knap"
+      ]
+     }
+    },
+    {
+     "id": "cord.rope",
+     "name": "Rope",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "two-ply string, made from plants (sinew is too short)",
+       "refs": [
+        "cord.ply",
+        "cord.twine"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "hauling or building"
+      }
+     ],
+     "does": "Lashing shelters, hauling, rafts later.",
+     "short": "Rope",
+     "sim": {
+      "during": [
+       "Rest",
+       "GatherWood"
+      ]
+     }
+    },
+    {
+     "id": "cord.net",
+     "name": "Knotted nets",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "rope",
+       "refs": [
+        "cord.rope"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "water to fish, or loads to carry"
+      },
+      {
+       "t": "Person",
+       "text": "patient"
+      }
+     ],
+     "does": "Fishing nets and carrying nets.",
+     "short": "Nets",
+     "sim": {
+      "during": [
+       "Fish",
+       "Rest"
+      ],
+      "materials": [
+       "river"
+      ],
+      "trait": "Patience"
+     }
+    }
+   ]
+  },
+  {
+   "id": "cook",
+   "name": "Cooking",
+   "col": 1,
+   "kind": "Technology",
+   "sum": "Cooking gets more food out of the same harvest, makes meat safe, and makes soft food that the very young and old can live on.",
+   "stages": [
+    {
+     "id": "cook.roast",
+     "name": "Roasting",
+     "short": "Roasting",
+     "known": true,
+     "does": "Meat, roots and nuts give more food; cooked meat rarely makes people sick."
+    },
+    {
+     "id": "cook.hotstone",
+     "name": "Hot-stone cooking",
+     "short": "Hot stones",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "built hearths",
+       "refs": [
+        "fire.hearth"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "smooth river stones"
+      },
+      {
+       "t": "Person",
+       "text": "interested in the hearth, patient"
+      }
+     ],
+     "does": "Even, thorough cooking; more food from everything.",
+     "accident": "A stone left in the fire scalds whatever is set on it, and the food comes out better.",
+     "sim": {
+      "during": [
+       "Cook"
+      ],
+      "materials": [
+       "river"
+      ],
+      "interest": "Hearth",
+      "skill": "Cooking",
+      "trait": "Patience"
+     }
+    },
+    {
+     "id": "cook.boil",
+     "name": "Boiling",
+     "short": "Boiling",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "hot-stone cooking",
+       "refs": [
+        "cook.hotstone"
+       ]
+      },
+      {
+       "t": "Container",
+       "text": "a scraped hide or a pitch-sealed basket to hold water",
+       "refs": [
+        "hide.scrape",
+        "bask.sealed"
+       ],
+       "any": true
+      }
+     ],
+     "does": "Soups and mush: toddlers wean onto soft food, elders eat well, starchy food gives much more.",
+     "accident": "A hot stone dropped into a water-filled hide makes it boil.",
+     "sim": {
+      "during": [
+       "Cook"
+      ],
+      "interest": "Hearth",
+      "skill": "Cooking"
+     }
+    },
+    {
+     "id": "cook.grease",
+     "name": "Bone grease",
+     "short": "Bone grease",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "boiling",
+       "refs": [
+        "cook.boil"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "plenty of bones from hunting",
+       "refs": [
+        "spear.wood"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "lean winters"
+      }
+     ],
+     "does": "Rich fat that keeps, from bones that were thrown away. A real winter lifeline.",
+     "sim": {
+      "during": [
+       "Cook"
+      ],
+      "materials": [
+       "bone"
+      ],
+      "pressures": [
+       "hunger",
+       "winter"
+      ],
+      "interest": "Hearth"
+     }
+    },
+    {
+     "id": "cook.oven",
+     "name": "Earth ovens",
+     "short": "Earth ovens",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "hot-stone cooking",
+       "refs": [
+        "cook.hotstone"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "tough roots and diggable ground"
+      },
+      {
+       "t": "Way of life",
+       "text": "returning to the same place",
+       "refs": [
+        "camp.return"
+       ]
+      }
+     ],
+     "does": "Big batches; tough roots become good food.",
+     "sim": {
+      "during": [
+       "Cook"
+      ],
+      "materials": [
+       "grassland"
+      ],
+      "interest": "Hearth"
+     }
+    },
+    {
+     "id": "cook.bread",
+     "name": "Flatbread",
+     "short": "Flatbread",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "grinding slab and hot stones",
+       "refs": [
+        "grind.slab",
+        "cook.hotstone"
+       ]
+      }
+     ],
+     "does": "Grain becomes a staple.",
+     "sim": {
+      "during": [
+       "Cook"
+      ],
+      "interest": "Hearth"
+     }
+    },
+    {
+     "id": "cook.pot",
+     "name": "Pot cooking",
+     "short": "Pot cooking",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "pinch pots",
+       "refs": [
+        "pot.pinch"
+       ]
+      }
+     ],
+     "does": "Stews and porridge: all of the above, easily.",
+     "sim": {
+      "during": [
+       "Cook"
+      ],
+      "interest": "Hearth"
+     }
+    }
+   ]
+  },
+  {
+   "id": "dry",
+   "name": "Drying & smoking",
+   "col": 1,
+   "kind": "Technology",
+   "sum": "Making food last into the lean season. Usually starts by accident.",
+   "stages": [
+    {
+     "id": "dry.keep",
+     "name": "Food that keeps",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "fire",
+       "refs": [
+        "fire.make"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "more meat, fish or berries than can be eaten"
+      }
+     ],
+     "does": "Food lasts days instead of hours.",
+     "accident": "Meat left hanging in the smoke is still good a week later. The main way in.",
+     "short": "Food keeps",
+     "sim": {
+      "during": [
+       "Cook",
+       "Eat"
+      ],
+      "materials": [
+       "glut"
+      ],
+      "pressures": [
+       "spoilage"
+      ],
+      "interest": "Hearth"
+     }
+    },
+    {
+     "id": "dry.rack",
+     "name": "Drying racks",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "food that keeps",
+       "refs": [
+        "dry.keep"
+       ]
+      },
+      {
+       "t": "Heat",
+       "text": "a built hearth, or steady sun",
+       "refs": [
+        "fire.hearth"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "poles"
+      },
+      {
+       "t": "Pressure",
+       "text": "a hard winter after a good autumn"
+      }
+     ],
+     "does": "Preserve a whole kill or harvest; real stores become possible.",
+     "short": "Drying racks",
+     "sim": {
+      "during": [
+       "Preserve"
+      ],
+      "materials": [
+       "forest"
+      ],
+      "pressures": [
+       "winter",
+       "spoilage"
+      ],
+      "interest": "Hearth"
+     }
+    },
+    {
+     "id": "dry.smoke",
+     "name": "Smoking",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "drying racks",
+       "refs": [
+        "dry.rack"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "a surplus of fish or meat"
+      },
+      {
+       "t": "Person",
+       "text": "patient"
+      }
+     ],
+     "does": "Food lasts months. A fish run can now feed a winter.",
+     "short": "Smoking",
+     "sim": {
+      "during": [
+       "Preserve"
+      ],
+      "materials": [
+       "glut"
+      ],
+      "trait": "Patience",
+      "interest": "Hearth"
+     }
+    },
+    {
+     "id": "dry.pemmican",
+     "name": "Pemmican",
+     "short": "Pemmican",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "smoking and bone grease",
+       "refs": [
+        "dry.smoke",
+        "cook.grease"
+       ]
+      },
+      {
+       "t": "Knowledge",
+       "text": "pounding",
+       "refs": [
+        "grind.pound"
+       ]
+      }
+     ],
+     "does": "Dried meat pounded with fat: keeps longest and packs the most food.",
+     "sim": {
+      "during": [
+       "Preserve"
+      ],
+      "materials": [
+       "fat"
+      ],
+      "interest": "Hearth"
+     }
+    }
+   ]
+  },
+  {
+   "id": "atl",
+   "name": "Spear-thrower",
+   "col": 1,
+   "kind": "Technology",
+   "sum": "A hooked stick that throws a spear much farther. One road to the bow.",
+   "stages": [
+    {
+     "id": "atl.hook",
+     "name": "Hooked throwing stick",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "light throwing spears",
+       "refs": [
+        "spear.light"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "hardwood"
+      },
+      {
+       "t": "Pressure",
+       "text": "wary prey that bolts early"
+      },
+      {
+       "t": "Person",
+       "text": "skilled hunter"
+      }
+     ],
+     "does": "Kills at range; more band strength.",
+     "short": "Thrower",
+     "sim": {
+      "during": [
+       "Hunt",
+       "Knap"
+      ],
+      "pressures": [
+       "flight"
+      ],
+      "skill": "Hunting"
+     }
+    },
+    {
+     "id": "atl.dart",
+     "name": "Fletched darts",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "hooked throwing stick",
+       "refs": [
+        "atl.hook"
+       ]
+      },
+      {
+       "t": "Knowledge",
+       "text": "two-ply string for binding",
+       "refs": [
+        "cord.ply"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "feathers"
+      }
+     ],
+     "does": "Accurate darts. The idea of fletching carries over to arrows.",
+     "short": "Fletched darts",
+     "sim": {
+      "during": [
+       "Hunt",
+       "Knap"
+      ],
+      "skill": "Hunting"
+     }
+    }
+   ]
+  },
+  {
+   "id": "grind",
+   "name": "Grinding stones",
+   "col": 1,
+   "kind": "Technology",
+   "sum": "Turning hard seeds and nuts into food. The heavier stages need a band that stays put.",
+   "stages": [
+    {
+     "id": "grind.pound",
+     "name": "Pounding",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "flakes, foraging",
+       "refs": [
+        "knap.flake",
+        "forage.rounds"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "a hammerstone plus nuts or seeds"
+      },
+      {
+       "t": "Pressure",
+       "text": "plenty of starchy food that's hard to eat whole"
+      }
+     ],
+     "does": "Nuts and seeds become food.",
+     "accident": "Nuts cracked on the same rock for weeks leave a smooth hollow.",
+     "short": "Pounding",
+     "sim": {
+      "during": [
+       "Cook",
+       "Forage"
+      ],
+      "materials": [
+       "nuts"
+      ],
+      "interest": "Plants"
+     }
+    },
+    {
+     "id": "grind.mortar",
+     "name": "Mortar and pestle",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "pounding",
+       "refs": [
+        "grind.pound"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "a hollowed stone or log"
+      },
+      {
+       "t": "Way of life",
+       "text": "returning to the same place",
+       "refs": [
+        "camp.return"
+       ]
+      }
+     ],
+     "does": "Faster, finer meal.",
+     "short": "Mortar",
+     "sim": {
+      "during": [
+       "Cook"
+      ],
+      "way": "settled",
+      "interest": "Plants"
+     }
+    },
+    {
+     "id": "grind.slab",
+     "name": "Grinding slab",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "mortar and pestle",
+       "refs": [
+        "grind.mortar"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "a big flat stone (too heavy to carry) and wild grain"
+      },
+      {
+       "t": "Way of life",
+       "text": "long stays",
+       "refs": [
+        "camp.long"
+       ]
+      }
+     ],
+     "does": "Flour. Wild grain becomes worth the effort.",
+     "short": "Grinding slab",
+     "sim": {
+      "during": [
+       "Cook"
+      ],
+      "way": "settled-long",
+      "interest": "Plants"
+     }
+    }
+   ]
+  },
+  {
+   "id": "dog",
+   "name": "Dog companions",
+   "col": 1,
+   "kind": "Domestication",
+   "sum": "Wolves become dogs over generations, but only if the band is strong enough that wolves lurk instead of attack.",
+   "stages": [
+    {
+     "id": "dog.lurk",
+     "name": "Wolves at the edge of camp",
+     "needs": [
+      {
+       "t": "Material",
+       "text": "a wolf pack in range"
+      },
+      {
+       "t": "Pressure",
+       "text": "meat scraps left at camp",
+       "refs": [
+        "spear.wood"
+       ]
+      },
+      {
+       "t": "Deterrence",
+       "text": "band strength high enough that wolves stay back: armed adults, fire",
+       "refs": [
+        "fire.make"
+       ]
+      }
+     ],
+     "does": "Not a discovery, a situation. Wolves scavenge and their howls warn of other predators.",
+     "short": "Wolves lurk",
+     "sim": {
+      "during": [
+       "Rest",
+       "Cook"
+      ],
+      "materials": [
+       "wolves"
+      ]
+     }
+    },
+    {
+     "id": "dog.pup",
+     "name": "A pup raised in camp",
+     "needs": [
+      {
+       "t": "Situation",
+       "text": "wolves at the edge of camp",
+       "refs": [
+        "dog.lurk"
+       ]
+      },
+      {
+       "t": "Culture",
+       "text": "no taboo against wolves"
+      },
+      {
+       "t": "Person",
+       "text": "calm, interested in animals"
+      }
+     ],
+     "does": "One tame wolf. Its pups are tamer.",
+     "accident": "An orphaned pup is found after its mother is killed. The main way in.",
+     "short": "Pup in camp",
+     "sim": {
+      "during": [
+       "Care",
+       "Play"
+      ],
+      "materials": [
+       "wolves"
+      ],
+      "interest": "Animals"
+     }
+    },
+    {
+     "id": "dog.camp",
+     "name": "Camp dogs",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "pups raised in camp",
+       "refs": [
+        "dog.pup"
+       ]
+      },
+      {
+       "t": "Time",
+       "text": "several generations of the tamest pups kept"
+      }
+     ],
+     "does": "Guarding (more band strength), cleaning scraps, warmth.",
+     "short": "Camp dogs",
+     "sim": {
+      "during": [
+       "Care"
+      ],
+      "interest": "Animals",
+      "rate": 0.5
+     }
+    },
+    {
+     "id": "dog.hunt",
+     "name": "Hunting dogs",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "camp dogs",
+       "refs": [
+        "dog.camp"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "skilled hunter who works with them"
+      }
+     ],
+     "does": "Tracking and cornering prey. Hunts succeed far more often.",
+     "short": "Hunting dogs",
+     "sim": {
+      "during": [
+       "Hunt"
+      ],
+      "skill": "Hunting",
+      "interest": "Animals"
+     }
+    }
+   ]
+  },
+  {
+   "id": "burial",
+   "name": "Burial & rites",
+   "col": 1,
+   "kind": "Belief",
+   "belief": true,
+   "sum": "The first culture tile. Ties people to a place and creates the ritual specialist.",
+   "stages": [
+    {
+     "id": "burial.cover",
+     "name": "Covering the dead",
+     "needs": [
+      {
+       "t": "Event",
+       "text": "the death of someone loved or respected"
+      },
+      {
+       "t": "Person",
+       "text": "grieving deeply"
+      }
+     ],
+     "does": "Graves become places that matter.",
+     "short": "Burying",
+     "sim": {
+      "during": [
+       "Care",
+       "Rest"
+      ],
+      "pressures": [
+       "death"
+      ]
+     }
+    },
+    {
+     "id": "burial.goods",
+     "name": "Grave goods",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "covering the dead",
+       "refs": [
+        "burial.cover"
+       ]
+      },
+      {
+       "t": "Belief",
+       "text": "the dead go on somewhere, or are linked to the sky one"
+      }
+     ],
+     "does": "Objects take on meaning beyond use.",
+     "short": "Grave goods",
+     "sim": {
+      "during": [
+       "Care",
+       "Socialize"
+      ],
+      "pressures": [
+       "death"
+      ],
+      "interest": "Spirits"
+     }
+    },
+    {
+     "id": "burial.rites",
+     "name": "Ancestor rites",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "grave goods and shared stories",
+       "refs": [
+        "burial.goods",
+        "lang.story"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "interested in spirits"
+      }
+     ],
+     "does": "A ritual specialist emerges. Strong attachment to place.",
+     "short": "Ancestor rites",
+     "sim": {
+      "during": [
+       "Socialize"
+      ],
+      "pressures": [
+       "death"
+      ],
+      "interest": "Spirits"
+     }
+    }
+   ]
+  },
+  {
+   "id": "ochre",
+   "name": "Ochre & art",
+   "col": 2,
+   "kind": "Belief",
+   "belief": true,
+   "sum": "Art as belief made visible. Cave walls come from the Synty Alpine caves.",
+   "stages": [
+    {
+     "id": "ochre.body",
+     "name": "Body paint",
+     "needs": [
+      {
+       "t": "Material",
+       "text": "ochre"
+      },
+      {
+       "t": "Pressure",
+       "text": "a ritual, a status, or a need to mark who 'we' are"
+      },
+      {
+       "t": "Person",
+       "text": "interested in spirits, sky or people"
+      }
+     ],
+     "does": "Group identity; ritual looks the part.",
+     "accident": "Someone notices the red stain ochre leaves on their hands.",
+     "short": "Body paint",
+     "sim": {
+      "during": [
+       "Socialize"
+      ],
+      "materials": [
+       "ochre"
+      ],
+      "interest": "Spirits"
+     }
+    },
+    {
+     "id": "ochre.hand",
+     "name": "Handprints and marks",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "body paint",
+       "refs": [
+        "ochre.body"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "a cave or sheltered rock wall",
+       "refs": [
+        "shelter.cave"
+       ]
+      }
+     ],
+     "does": "Places get claimed and remembered.",
+     "short": "Handprints",
+     "sim": {
+      "during": [
+       "Rest"
+      ],
+      "interest": "Art"
+     }
+    },
+    {
+     "id": "ochre.paint",
+     "name": "Cave paintings",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "handprints, and stories worth showing",
+       "refs": [
+        "ochre.hand",
+        "lang.story"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "interested in spirits or animals, skilled hands"
+      },
+      {
+       "t": "Light",
+       "text": "torches or lamps to work deep inside",
+       "refs": [
+        "fire.torch",
+        "fire.lamp"
+       ],
+       "any": true
+      }
+     ],
+     "does": "Beliefs become very stable. Hunting magic beliefs form.",
+     "short": "Cave paintings",
+     "sim": {
+      "during": [
+       "Rest"
+      ],
+      "interest": "Art"
+     }
+    },
+    {
+     "id": "ochre.figure",
+     "name": "Carved and fired figures",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "cave paintings or grave goods",
+       "refs": [
+        "ochre.paint",
+        "burial.goods"
+       ],
+       "any": true
+      },
+      {
+       "t": "Material",
+       "text": "soft stone, bone or ivory; or clay that has been fired",
+       "refs": [
+        "pot.fired"
+       ]
+      }
+     ],
+     "does": "Portable sacred objects. The fired-clay version is real: figurines came 10,000 years before pots.",
+     "short": "Figures",
+     "sim": {
+      "during": [
+       "Knap"
+      ],
+      "interest": "Art"
+     }
+    }
+   ]
+  },
+  {
+   "id": "bask",
+   "name": "Basketry",
+   "col": 2,
+   "kind": "Technology",
+   "sum": "Carrying and holding more than hands can.",
+   "stages": [
+    {
+     "id": "bask.bundle",
+     "name": "Bundled reed carriers",
+     "needs": [
+      {
+       "t": "Material",
+       "text": "reeds, grass or willow"
+      },
+      {
+       "t": "Pressure",
+       "text": "gathering more than hands can carry"
+      }
+     ],
+     "does": "Bigger foraging hauls.",
+     "short": "Reed bundles",
+     "sim": {
+      "during": [
+       "Forage"
+      ],
+      "materials": [
+       "reeds"
+      ],
+      "pressures": [
+       "carry"
+      ],
+      "interest": "Plants"
+     }
+    },
+    {
+     "id": "bask.woven",
+     "name": "Woven baskets",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "bundled carriers plus plant twine",
+       "refs": [
+        "bask.bundle",
+        "cord.twine"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "patient, interested in plants"
+      }
+     ],
+     "does": "Durable carriers; fish traps become possible.",
+     "short": "Woven",
+     "sim": {
+      "during": [
+       "Forage",
+       "Rest"
+      ],
+      "interest": "Plants",
+      "trait": "Patience"
+     }
+    },
+    {
+     "id": "bask.tight",
+     "name": "Tight baskets that hold seed",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "woven baskets",
+       "refs": [
+        "bask.woven"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "small seeds worth collecting"
+      }
+     ],
+     "does": "Seed harvests and basket stores.",
+     "short": "Seed-tight",
+     "sim": {
+      "during": [
+       "Forage",
+       "Rest"
+      ],
+      "materials": [
+       "grain"
+      ],
+      "interest": "Plants"
+     }
+    },
+    {
+     "id": "bask.sealed",
+     "name": "Pitch-sealed baskets",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "tight baskets and a hearth",
+       "refs": [
+        "bask.tight",
+        "fire.hearth"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "tree resin"
+      }
+     ],
+     "does": "Carry water; boil food with hot stones.",
+     "short": "Pitch-sealed",
+     "sim": {
+      "during": [
+       "Rest",
+       "Cook"
+      ],
+      "materials": [
+       "forest"
+      ],
+      "interest": "Plants"
+     }
+    }
+   ]
+  },
+  {
+   "id": "hide",
+   "name": "Hide & sewing",
+   "col": 2,
+   "kind": "Technology",
+   "sum": "From wrapped skins to fitted clothes. Fitted clothing opens colder ground.",
+   "stages": [
+    {
+     "id": "hide.wrap",
+     "name": "Wrapped hides",
+     "needs": [
+      {
+       "t": "Material",
+       "text": "hides from hunting",
+       "refs": [
+        "spear.wood"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "a cold season"
+      }
+     ],
+     "does": "Basic warmth.",
+     "short": "Wrapped hides",
+     "sim": {
+      "during": [
+       "Rest",
+       "Cook"
+      ],
+      "materials": [
+       "hide"
+      ],
+      "pressures": [
+       "cold"
+      ]
+     }
+    },
+    {
+     "id": "hide.scrape",
+     "name": "Scraped and dried hides",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "wrapped hides and scrapers",
+       "refs": [
+        "hide.wrap",
+        "knap.flake"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "patient"
+      }
+     ],
+     "does": "Hides last; covers for shelters.",
+     "short": "Scraped",
+     "sim": {
+      "during": [
+       "Cook",
+       "Rest"
+      ],
+      "materials": [
+       "hide"
+      ],
+      "trait": "Patience"
+     }
+    },
+    {
+     "id": "hide.awl",
+     "name": "Stitched with an awl",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "scraped hides",
+       "refs": [
+        "hide.scrape"
+       ]
+      },
+      {
+       "t": "Thread",
+       "text": "sinew or plant twine",
+       "refs": [
+        "cord.sinew",
+        "cord.twine"
+       ],
+       "any": true
+      },
+      {
+       "t": "Tool",
+       "text": "bone awls",
+       "refs": [
+        "bone.awl"
+       ]
+      }
+     ],
+     "does": "Bags, simple garments, joined shelter covers.",
+     "short": "Awl stitching",
+     "sim": {
+      "during": [
+       "Rest"
+      ],
+      "materials": [
+       "hide"
+      ]
+     }
+    },
+    {
+     "id": "hide.tent",
+     "name": "Hide tents",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "stitched hides",
+       "refs": [
+        "hide.awl"
+       ]
+      },
+      {
+       "t": "Knowledge",
+       "text": "two-ply string",
+       "refs": [
+        "cord.ply"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "long poles"
+      }
+     ],
+     "does": "Real shelter; long stays get easier.",
+     "short": "Hide tents",
+     "sim": {
+      "during": [
+       "Rest"
+      ],
+      "materials": [
+       "hide",
+       "forest"
+      ],
+      "pressures": [
+       "cold"
+      ]
+     }
+    },
+    {
+     "id": "hide.needle",
+     "name": "Fitted clothing",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "awl stitching",
+       "refs": [
+        "hide.awl"
+       ]
+      },
+      {
+       "t": "Tool",
+       "text": "eyed needles",
+       "refs": [
+        "bone.needle"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "severe cold"
+      },
+      {
+       "t": "Person",
+       "text": "dexterous"
+      }
+     ],
+     "does": "Big cold tolerance. Harsh lands become livable. Fitted boots too.",
+     "short": "Fitted clothes",
+     "sim": {
+      "during": [
+       "Rest"
+      ],
+      "materials": [
+       "hide"
+      ],
+      "pressures": [
+       "cold"
+      ]
+     }
+    },
+    {
+     "id": "hide.shoe",
+     "name": "Footwear",
+     "short": "Footwear",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "awl stitching",
+       "refs": [
+        "hide.awl"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "cold, rough or thorny ground; long walks"
+      }
+     ],
+     "does": "Faster, safer travel; fewer injuries and frostbite.",
+     "sim": {
+      "during": [
+       "Forage",
+       "Hunt"
+      ],
+      "materials": [
+       "hide"
+      ],
+      "pressures": [
+       "cold"
+      ]
+     }
+    },
+    {
+     "id": "hide.snowshoe",
+     "name": "Snowshoes",
+     "short": "Snowshoes",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "scraped hides and woodworking",
+       "refs": [
+        "hide.scrape",
+        "wood.shape"
+       ]
+      },
+      {
+       "t": "Thread",
+       "text": "sinew or plant twine",
+       "refs": [
+        "cord.sinew",
+        "cord.twine"
+       ],
+       "any": true
+      },
+      {
+       "t": "Pressure",
+       "text": "deep snow in winter"
+      }
+     ],
+     "does": "Winter travel at normal speed; animals floundering in deep snow become easier to run down.",
+     "sim": {
+      "during": [
+       "Hunt",
+       "GatherWood"
+      ],
+      "materials": [
+       "snow"
+      ],
+      "pressures": [
+       "winter"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "shelter",
+   "name": "Shelter",
+   "col": 2,
+   "kind": "Technology",
+   "sum": "Where people sleep shapes how long they stay, and how they get sick.",
+   "stages": [
+    {
+     "id": "shelter.brush",
+     "name": "Windbreaks and brush shelters",
+     "short": "Windbreaks",
+     "known": true,
+     "does": "A night out of the wind."
+    },
+    {
+     "id": "shelter.cave",
+     "name": "Caves and rock shelters",
+     "short": "Cave living",
+     "needs": [
+      {
+       "t": "Material",
+       "text": "a cave or overhang"
+      },
+      {
+       "t": "Knowledge",
+       "text": "fire, to drive out animals and keep warm",
+       "refs": [
+        "fire.make"
+       ]
+      },
+      {
+       "t": "Deterrence",
+       "text": "band strong enough to take it from bears or wolves"
+      }
+     ],
+     "does": "Warm, defensible winter quarters; walls for art.",
+     "accident": "A storm drives the band into an overhang, and it stays dry all night.",
+     "sim": {
+      "during": [
+       "Forage",
+       "Hunt"
+      ],
+      "materials": [
+       "cave"
+      ],
+      "pressures": [
+       "cold"
+      ]
+     }
+    },
+    {
+     "id": "shelter.lean",
+     "name": "Lean-tos",
+     "short": "Lean-tos",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "any thread for lashing",
+       "refs": [
+        "cord.sinew",
+        "cord.twine"
+       ],
+       "any": true
+      },
+      {
+       "t": "Material",
+       "text": "poles and bark or brush"
+      }
+     ],
+     "does": "Quick, sturdier camp shelters.",
+     "sim": {
+      "during": [
+       "Rest"
+      ],
+      "materials": [
+       "forest"
+      ],
+      "pressures": [
+       "cold"
+      ]
+     }
+    },
+    {
+     "id": "shelter.hut",
+     "name": "Pole-and-thatch huts",
+     "short": "Huts",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "rope and stone axes",
+       "refs": [
+        "cord.rope",
+        "wood.axe"
+       ]
+      },
+      {
+       "t": "Way of life",
+       "text": "seasonal return",
+       "refs": [
+        "camp.return"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "poles, reeds or thatch"
+      }
+     ],
+     "does": "Lasting homes; a camp starts to look like a place.",
+     "sim": {
+      "during": [
+       "Rest"
+      ],
+      "materials": [
+       "forest"
+      ],
+      "pressures": [
+       "cold"
+      ],
+      "way": "settled"
+     }
+    },
+    {
+     "id": "shelter.pit",
+     "name": "Pit houses",
+     "short": "Pit houses",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "huts",
+       "refs": [
+        "shelter.hut"
+       ]
+      },
+      {
+       "t": "Way of life",
+       "text": "long stays",
+       "refs": [
+        "camp.long"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "hard winters"
+      }
+     ],
+     "does": "Half-buried, earth-covered houses. Warm all winter.",
+     "sim": {
+      "during": [
+       "Rest"
+      ],
+      "pressures": [
+       "cold",
+       "winter"
+      ],
+      "way": "settled-long"
+     }
+    }
+   ]
+  },
+  {
+   "id": "fish",
+   "name": "Fishing",
+   "col": 2,
+   "kind": "Technology",
+   "sum": "Turning a river into a reliable larder. People start out catching fish by hand; weirs and nets make the spring and autumn runs into gluts worth drying.",
+   "stages": [
+    {
+     "id": "fish.grope",
+     "name": "Catching fish by hand",
+     "short": "Hand fishing",
+     "known": true,
+     "does": "Fish stranded in pools, groped from under banks, and shellfish: a little food from the water, unreliably."
+    },
+    {
+     "id": "fish.spear",
+     "name": "Spear fishing",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "spear and catching fish by hand",
+       "refs": [
+        "spear.wood",
+        "fish.grope"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "a river or lake with fish"
+      },
+      {
+       "t": "Pressure",
+       "text": "food short, water close"
+      },
+      {
+       "t": "Person",
+       "text": "interested in water"
+      }
+     ],
+     "does": "More fish, from deeper water.",
+     "accident": "Fish trapped in a shrinking pool are caught by hand.",
+     "short": "Spear fishing",
+     "sim": {
+      "during": [
+       "Fish"
+      ],
+      "materials": [
+       "river"
+      ],
+      "pressures": [
+       "hunger"
+      ],
+      "interest": "Water"
+     }
+    },
+    {
+     "id": "fish.weir",
+     "name": "Stake weirs",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "spearing fish",
+       "refs": [
+        "fish.spear"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "stakes and a seasonal fish run"
+      },
+      {
+       "t": "Person",
+       "text": "patient"
+      }
+     ],
+     "does": "Big catches during runs.",
+     "short": "Weirs",
+     "sim": {
+      "during": [
+       "Fish"
+      ],
+      "materials": [
+       "fishrun",
+       "forest"
+      ],
+      "trait": "Patience",
+      "interest": "Water"
+     }
+    },
+    {
+     "id": "fish.trap",
+     "name": "Basket traps",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "woven baskets and spearing fish",
+       "refs": [
+        "bask.woven",
+        "fish.spear"
+       ]
+      }
+     ],
+     "does": "Steady catch with little work.",
+     "short": "Basket traps",
+     "sim": {
+      "during": [
+       "Fish"
+      ],
+      "materials": [
+       "river"
+      ],
+      "interest": "Water"
+     }
+    },
+    {
+     "id": "fish.line",
+     "name": "Hook and line",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "two-ply string",
+       "refs": [
+        "cord.ply"
+       ]
+      },
+      {
+       "t": "Tool",
+       "text": "bone fish hooks",
+       "refs": [
+        "bone.hook"
+       ]
+      }
+     ],
+     "does": "Fishing deep water.",
+     "short": "Hook & line",
+     "sim": {
+      "during": [
+       "Fish"
+      ],
+      "materials": [
+       "river"
+      ],
+      "interest": "Water"
+     }
+    },
+    {
+     "id": "fish.net",
+     "name": "Nets",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "knotted nets",
+       "refs": [
+        "cord.net"
+       ]
+      }
+     ],
+     "does": "The biggest, most reliable catches.",
+     "short": "Net fishing",
+     "sim": {
+      "during": [
+       "Fish"
+      ],
+      "materials": [
+       "river"
+      ],
+      "interest": "Water"
+     }
+    }
+   ]
+  },
+  {
+   "id": "bow",
+   "name": "Bow & arrow",
+   "col": 3,
+   "kind": "Technology",
+   "sum": "Killing at range without being seen.",
+   "stages": [
+    {
+     "id": "bow.simple",
+     "name": "Simple bow",
+     "needs": [
+      {
+       "t": "Material",
+       "text": "springy wood (yew, ash) or bamboo"
+      },
+      {
+       "t": "Knowledge",
+       "text": "two-ply string for the bowstring",
+       "refs": [
+        "cord.ply"
+       ]
+      },
+      {
+       "t": "Knowledge",
+       "text": "spear-thrower, or long practice throwing",
+       "refs": [
+        "atl.hook"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "fast prey, or conflict with neighbors"
+      },
+      {
+       "t": "Person",
+       "text": "skilled hunter or woodworker, curious"
+      },
+      {
+       "t": "Helps",
+       "text": "spring-pole snares: the idea of stored spring",
+       "refs": [
+        "trap.spring"
+       ]
+      }
+     ],
+     "does": "Range and stealth; more band strength.",
+     "accident": "A spring-pole snare snaps back and flings its trigger stick across the trail.",
+     "short": "Simple bow",
+     "sim": {
+      "during": [
+       "Hunt",
+       "Knap"
+      ],
+      "materials": [
+       "forest"
+      ],
+      "pressures": [
+       "flight"
+      ],
+      "skill": "Hunting",
+      "trait": "Curiosity"
+     }
+    },
+    {
+     "id": "bow.fletch",
+     "name": "Fletched arrows",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "simple bow (fletched darts help a lot)",
+       "refs": [
+        "bow.simple"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "feathers"
+      }
+     ],
+     "does": "Accuracy.",
+     "short": "Fletching",
+     "sim": {
+      "during": [
+       "Knap",
+       "Hunt"
+      ],
+      "skill": "Hunting"
+     }
+    },
+    {
+     "id": "bow.stone",
+     "name": "Stone-tipped arrows",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "simple bow and hafted points",
+       "refs": [
+        "bow.simple",
+        "knap.haft"
+       ]
+      }
+     ],
+     "does": "Lethal against big game.",
+     "short": "Stone arrows",
+     "sim": {
+      "during": [
+       "Knap"
+      ],
+      "skill": "Knapping"
+     }
+    },
+    {
+     "id": "bow.backed",
+     "name": "Sinew-backed bow",
+     "variant": "needs both cordage routes",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "simple bow, sinew thread and plant twine",
+       "refs": [
+        "bow.simple",
+        "cord.sinew",
+        "cord.twine"
+       ]
+      }
+     ],
+     "does": "Much stronger bows.",
+     "short": "Backed bow",
+     "sim": {
+      "during": [
+       "Knap"
+      ],
+      "skill": "Hunting"
+     }
+    }
+   ]
+  },
+  {
+   "id": "store",
+   "name": "Storage",
+   "col": 3,
+   "kind": "Technology",
+   "sum": "Changes how a band thinks about the future. Things worth guarding appear.",
+   "stages": [
+    {
+     "id": "store.cache",
+     "name": "Caches under stones",
+     "needs": [
+      {
+       "t": "Pressure",
+       "text": "seasonal glut followed by scarcity"
+      },
+      {
+       "t": "Person",
+       "text": "cautious planner"
+      }
+     ],
+     "does": "A small buffer against hunger.",
+     "accident": "Food hidden from wolves is found intact weeks later.",
+     "short": "Caches",
+     "sim": {
+      "during": [
+       "Forage",
+       "Preserve",
+       "Cook"
+      ],
+      "pressures": [
+       "spoilage",
+       "winter"
+      ],
+      "trait": "Patience"
+     }
+    },
+    {
+     "id": "store.pit",
+     "name": "Lined pits",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "caches, plus food that keeps",
+       "refs": [
+        "store.cache",
+        "dry.keep"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "dry, diggable ground"
+      },
+      {
+       "t": "Way of life",
+       "text": "returning to the same place",
+       "refs": [
+        "camp.return"
+       ]
+      }
+     ],
+     "does": "Winter stores.",
+     "short": "Lined pits",
+     "sim": {
+      "during": [
+       "Preserve",
+       "Forage"
+      ],
+      "way": "settled"
+     }
+    },
+    {
+     "id": "store.basket",
+     "name": "Basket stores",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "caches and tight baskets",
+       "refs": [
+        "store.cache",
+        "bask.tight"
+       ]
+      }
+     ],
+     "does": "Seed and nut stores.",
+     "short": "Basket stores",
+     "sim": {
+      "during": [
+       "Preserve",
+       "Forage"
+      ]
+     }
+    },
+    {
+     "id": "store.raised",
+     "name": "Raised caches",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "pits or basket stores",
+       "refs": [
+        "store.pit",
+        "store.basket"
+       ],
+       "any": true
+      },
+      {
+       "t": "Knowledge",
+       "text": "rope",
+       "refs": [
+        "cord.rope"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "animals raiding stores"
+      }
+     ],
+     "does": "Stores safe from animals. Big enough to be worth stealing.",
+     "short": "Raised caches",
+     "sim": {
+      "during": [
+       "Preserve"
+      ],
+      "pressures": [
+       "danger"
+      ]
+     }
+    },
+    {
+     "id": "store.cold",
+     "name": "Cold caches",
+     "short": "Cold caches",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "caches under stones",
+       "refs": [
+        "store.cache"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "long freezing winters and meat to keep"
+      }
+     ],
+     "does": "Meat buried in snow or frozen ground keeps all winter.",
+     "accident": "Meat left in a snowbank is still good weeks later.",
+     "sim": {
+      "during": [
+       "Preserve",
+       "Hunt"
+      ],
+      "materials": [
+       "snow"
+      ],
+      "pressures": [
+       "winter"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "camp",
+   "name": "Base camp",
+   "col": 4,
+   "kind": "Way of life",
+   "belief": true,
+   "sum": "Not a tool: a band choosing to mostly stay put. Unlocks heavy, fragile things, and new problems like disease.",
+   "stages": [
+    {
+     "id": "camp.return",
+     "name": "Seasonal return",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "seasonal rounds",
+       "refs": [
+        "forage.rounds"
+       ]
+      },
+      {
+       "t": "Material",
+       "text": "a place with dependable seasonal food"
+      },
+      {
+       "t": "Culture",
+       "text": "attachment to place; graves nearby help",
+       "refs": [
+        "burial.cover"
+       ]
+      }
+     ],
+     "does": "The same camp every year; things can be left behind.",
+     "short": "Return yearly",
+     "sim": {
+      "during": [
+       "Socialize",
+       "Forage"
+      ],
+      "interest": "Plants"
+     }
+    },
+    {
+     "id": "camp.long",
+     "name": "Long stays",
+     "needs": [
+      {
+       "t": "Way of life",
+       "text": "seasonal return",
+       "refs": [
+        "camp.return"
+       ]
+      },
+      {
+       "t": "Knowledge",
+       "text": "any storage",
+       "refs": [
+        "store.cache"
+       ]
+      },
+      {
+       "t": "Food",
+       "text": "one reliable local food: weirs, nuts, or wild grain",
+       "refs": [
+        "fish.weir",
+        "forage.nuts",
+        "grain.harvest"
+       ],
+       "any": true
+      },
+      {
+       "t": "Pressure",
+       "text": "moving costs more than staying: many children or elders, heavy stores"
+      }
+     ],
+     "does": "Most of the year in one place. Heavy tools make sense.",
+     "short": "Long stays",
+     "sim": {
+      "during": [
+       "Socialize"
+      ],
+      "way": "settled"
+     }
+    },
+    {
+     "id": "camp.year",
+     "name": "Year-round base",
+     "needs": [
+      {
+       "t": "Way of life",
+       "text": "long stays",
+       "refs": [
+        "camp.long"
+       ]
+      },
+      {
+       "t": "Knowledge",
+       "text": "pits or raised stores",
+       "refs": [
+        "store.pit",
+        "store.raised"
+       ],
+       "any": true
+      },
+      {
+       "t": "Food",
+       "text": "two reliable food sources"
+      },
+      {
+       "t": "Shelter",
+       "text": "hide tents, huts or pit houses",
+       "refs": [
+        "hide.tent",
+        "shelter.hut",
+        "shelter.pit"
+       ],
+       "any": true
+      }
+     ],
+     "does": "Population grows; disease risk grows; the next milestone's villages start here.",
+     "short": "Year-round",
+     "sim": {
+      "during": [
+       "Socialize"
+      ],
+      "way": "settled-long"
+     }
+    }
+   ]
+  },
+  {
+   "id": "pot",
+   "name": "Pottery",
+   "col": 5,
+   "kind": "Technology",
+   "sum": "The showcase of this milestone. Fired clay can happen early by accident, but pots need everything else to line up.",
+   "stages": [
+    {
+     "id": "pot.fired",
+     "name": "Fired clay",
+     "needs": [
+      {
+       "t": "Material",
+       "text": "clay"
+      },
+      {
+       "t": "Knowledge",
+       "text": "a built hearth",
+       "refs": [
+        "fire.hearth"
+       ]
+      }
+     ],
+     "does": "The insight that fire hardens clay. Figurines possible.",
+     "accident": "Clay pressed or dropped near a hearth comes out hard. The main way in.",
+     "short": "Fired clay",
+     "sim": {
+      "during": [
+       "Cook"
+      ],
+      "materials": [
+       "clay"
+      ],
+      "interest": "StoneEarth"
+     }
+    },
+    {
+     "id": "pot.pinch",
+     "name": "Pinch pots",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "fired clay and high-heat fires",
+       "refs": [
+        "pot.fired",
+        "fire.hot"
+       ]
+      },
+      {
+       "t": "Way of life",
+       "text": "long stays (pots are too heavy for nomads)",
+       "refs": [
+        "camp.long"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "a need to cook or hold liquids"
+      },
+      {
+       "t": "Person",
+       "text": "curious, interested in fire or stone"
+      }
+     ],
+     "does": "Small vessels.",
+     "short": "Pinch pots",
+     "sim": {
+      "during": [
+       "Cook"
+      ],
+      "materials": [
+       "clay"
+      ],
+      "way": "settled-long",
+      "interest": "Fire"
+     }
+    },
+    {
+     "id": "pot.coil",
+     "name": "Coiled pots",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "pinch pots",
+       "refs": [
+        "pot.pinch"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "patient, practiced potter"
+      }
+     ],
+     "does": "Real cooking pots: stews and porridge (grain becomes much more useful); sealed storage.",
+     "short": "Coiled pots",
+     "sim": {
+      "during": [
+       "Cook"
+      ],
+      "materials": [
+       "clay"
+      ],
+      "trait": "Patience"
+     }
+    },
+    {
+     "id": "pot.pit",
+     "name": "Pit firing",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "coiled pots and high-heat fires",
+       "refs": [
+        "pot.coil",
+        "fire.hot"
+       ]
+      }
+     ],
+     "does": "Reliable, sturdy pots. Kilns are next milestone.",
+     "short": "Pit firing",
+     "sim": {
+      "during": [
+       "Cook"
+      ],
+      "materials": [
+       "clay"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "grain",
+   "name": "Tending wild grain",
+   "col": 5,
+   "kind": "Technology",
+   "sum": "The doorway to farming, which is the next milestone.",
+   "stages": [
+    {
+     "id": "grain.harvest",
+     "name": "Harvesting wild stands",
+     "needs": [
+      {
+       "t": "Material",
+       "text": "wild grasses with heavy seed"
+      },
+      {
+       "t": "Knowledge",
+       "text": "something to hold seed: tight baskets",
+       "refs": [
+        "bask.tight"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "food running short"
+      }
+     ],
+     "does": "A seasonal grain haul.",
+     "short": "Wild harvest",
+     "sim": {
+      "during": [
+       "Forage"
+      ],
+      "materials": [
+       "grain"
+      ],
+      "pressures": [
+       "hunger"
+      ],
+      "interest": "Plants"
+     }
+    },
+    {
+     "id": "grain.clear",
+     "name": "Clearing competitors",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "harvesting wild stands",
+       "refs": [
+        "grain.harvest"
+       ]
+      },
+      {
+       "t": "Way of life",
+       "text": "seasonal return, or burning the land",
+       "refs": [
+        "camp.return",
+        "fire.land"
+       ],
+       "any": true
+      }
+     ],
+     "does": "Bigger wild stands near camp.",
+     "short": "Clearing",
+     "sim": {
+      "during": [
+       "Forage"
+      ],
+      "materials": [
+       "grain"
+      ],
+      "interest": "Plants"
+     }
+    },
+    {
+     "id": "grain.scatter",
+     "name": "Scattering seed nearby",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "clearing competitors",
+       "refs": [
+        "grain.clear"
+       ]
+      },
+      {
+       "t": "Way of life",
+       "text": "long stays",
+       "refs": [
+        "camp.long"
+       ]
+      }
+     ],
+     "does": "Grain grows where you want it.",
+     "accident": "Seed spilled on the camp's rubbish heap sprouts the next spring.",
+     "short": "Scatter seed",
+     "sim": {
+      "during": [
+       "Forage"
+      ],
+      "materials": [
+       "grain"
+      ],
+      "interest": "Plants"
+     }
+    },
+    {
+     "id": "grain.select",
+     "name": "Keeping the best seed",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "scattering seed and grinding slabs",
+       "refs": [
+        "grain.scatter",
+        "grind.slab"
+       ]
+      },
+      {
+       "t": "Knowledge",
+       "text": "basket stores",
+       "refs": [
+        "store.basket"
+       ]
+      },
+      {
+       "t": "Helps",
+       "text": "tally marks for timing the seasons",
+       "refs": [
+        "lang.count"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "patient, interested in plants"
+      }
+     ],
+     "does": "Seeds get bigger each generation. Farming begins next milestone.",
+     "short": "Best seed",
+     "sim": {
+      "during": [
+       "Forage"
+      ],
+      "materials": [
+       "grain"
+      ],
+      "trait": "Patience",
+      "interest": "Plants"
+     }
+    }
+   ]
+  },
+  {
+   "id": "wayfind",
+   "name": "Wayfinding",
+   "col": 1,
+   "kind": "Known at start",
+   "sum": "Knowing the land: where food grows in each season, where game goes, where other people camp. Everyone carries a map in their head; naming places, drawing them and carrying them let people hold more, share more, and talk of farther places.",
+   "stages": [
+    {
+     "id": "wayfind.heart",
+     "name": "Knowing the land by heart",
+     "short": "Mental maps",
+     "known": true,
+     "does": "Each person remembers places they've seen or been told of; it fades for places long unvisited."
+    },
+    {
+     "id": "wayfind.names",
+     "name": "Named places and routes",
+     "short": "Place names",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "storytelling",
+       "refs": [
+        "lang.story"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "wide ranges, many places to keep track of"
+      },
+      {
+       "t": "Person",
+       "text": "sociable, a good memory for the land"
+      }
+     ],
+     "does": "People hold twice as many places in mind and pass on more of them in talk.",
+     "sim": {
+      "during": [
+       "Socialize",
+       "Forage"
+      ],
+      "trait": "Sociability"
+     }
+    },
+    {
+     "id": "wayfind.sketch",
+     "name": "Ground maps",
+     "short": "Sketch maps",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "named places",
+       "refs": [
+        "wayfind.names"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "planning a move, a hunt or a visit far away"
+      },
+      {
+       "t": "Person",
+       "text": "curious"
+      }
+     ],
+     "does": "Lines in the dirt show others where things are: far places can be described, and much more is shared at once.",
+     "accident": "A stick idly traces the river's bend while someone explains where the herd crossed.",
+     "sim": {
+      "during": [
+       "Socialize"
+      ],
+      "trait": "Curiosity"
+     }
+    },
+    {
+     "id": "wayfind.carry",
+     "name": "Carried maps",
+     "short": "Carried maps",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "ground maps and scraped hides",
+       "refs": [
+        "wayfind.sketch",
+        "hide.scrape"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "patient"
+      }
+     ],
+     "does": "Maps on hide or bark keep what's known beyond any one memory.",
+     "sim": {
+      "during": [
+       "Rest"
+      ],
+      "materials": [
+       "hide"
+      ],
+      "trait": "Patience"
+     }
+    },
+    {
+     "id": "wayfind.stars",
+     "name": "Star paths",
+     "short": "Star paths",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "named places",
+       "refs": [
+        "wayfind.names"
+       ]
+      },
+      {
+       "t": "Person",
+       "text": "interested in the sky"
+      }
+     ],
+     "does": "Finding the way by stars and landmarks: long journeys, and later the sea.",
+     "sim": {
+      "during": [
+       "Rest",
+       "Visit"
+      ],
+      "interest": "Sky"
+     }
+    }
+   ]
+  },
+  {
+   "id": "hunt",
+   "name": "Hunting tactics",
+   "col": 0,
+   "kind": "Known at start",
+   "sum": "How a party closes in on its quarry. Each band develops its own habits from what has worked for it, animal by animal.",
+   "stages": [
+    {
+     "id": "hunt.stalk",
+     "name": "Stalking",
+     "short": "Stalking",
+     "known": true,
+     "does": "Creep within reach before the animals bolt. Hard with thrusting spears, easy with weapons that reach far."
+    },
+    {
+     "id": "hunt.ambush",
+     "name": "Waiting at water",
+     "short": "Ambush",
+     "known": true,
+     "does": "Wait where animals come to drink; slow, and rewards patience."
+    },
+    {
+     "id": "hunt.drive",
+     "name": "Driving into wet ground",
+     "short": "Driving",
+     "known": true,
+     "does": "Push a herd into marsh or river where it flounders; needs several people."
+    },
+    {
+     "id": "hunt.surround",
+     "name": "Surrounding",
+     "short": "Surround",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "driving",
+       "refs": [
+        "hunt.drive",
+        "lang.speech"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "wary herds in open country"
+      },
+      {
+       "t": "Person",
+       "text": "a skilled hunter who leads well"
+      }
+     ],
+     "does": "A big party rings a herd in open ground and closes the circle.",
+     "sim": {
+      "during": [
+       "Hunt"
+      ],
+      "materials": [
+       "grassland"
+      ],
+      "pressures": [
+       "flight"
+      ],
+      "skill": "Hunting"
+     }
+    },
+    {
+     "id": "hunt.persist",
+     "name": "Running down",
+     "short": "Persistence",
+     "needs": [
+      {
+       "t": "Knowledge",
+       "text": "stalking",
+       "refs": [
+        "hunt.stalk"
+       ]
+      },
+      {
+       "t": "Pressure",
+       "text": "hot days, prey that can't be approached"
+      },
+      {
+       "t": "Person",
+       "text": "great endurance"
+      }
+     ],
+     "does": "Chase an animal through the heat of the day until it can run no more.",
+     "sim": {
+      "during": [
+       "Hunt"
+      ],
+      "pressures": [
+       "flight"
+      ],
+      "trait": "Boldness",
+      "rate": 0.7
+     }
+    }
+   ]
+  }
+ ]
+}
