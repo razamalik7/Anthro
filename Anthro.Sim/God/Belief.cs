@@ -31,15 +31,16 @@ namespace Anthro.Sim
         void SeedBelief(List<Person> group)
         {
             if (Off("god") || Off("belief")) return;
-            double baseReal = Inheritance.Clamp01(Rng.Normal(0.2, 0.1));
-            double baseAnswers = Inheritance.Clamp01(Rng.Normal(0.1, 0.05));
-            double baseKind = Math.Max(-1, Math.Min(1, Rng.Normal(0.0, 0.1)));
+            var rng = Region.GodRng;
+            double baseReal = Inheritance.Clamp01(rng.Normal(0.2, 0.1));
+            double baseAnswers = Inheritance.Clamp01(rng.Normal(0.1, 0.05));
+            double baseKind = Math.Max(-1, Math.Min(1, rng.Normal(0.0, 0.1)));
 
             foreach (var p in group)
             {
-                p.Expect.Absorb(GodRealTopic, Inheritance.Clamp01(baseReal + Rng.Normal(0, 0.05)), 1, 0);
-                p.Expect.Absorb(GodAnswersTopic, Inheritance.Clamp01(baseAnswers + Rng.Normal(0, 0.02)), 1, 0);
-                p.Expect.Absorb(GodKindTopic, Math.Max(-1, Math.Min(1, baseKind + Rng.Normal(0, 0.05))), 1, 0);
+                p.Expect.Absorb(GodRealTopic, Inheritance.Clamp01(baseReal + rng.Normal(0, 0.05)), 1, 0);
+                p.Expect.Absorb(GodAnswersTopic, Inheritance.Clamp01(baseAnswers + rng.Normal(0, 0.02)), 1, 0);
+                p.Expect.Absorb(GodKindTopic, Math.Max(-1, Math.Min(1, baseKind + rng.Normal(0, 0.05))), 1, 0);
             }
         }
 

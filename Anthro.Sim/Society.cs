@@ -260,7 +260,7 @@ namespace Anthro.Sim
         /// <summary>A deed happens: witnesses notice and feel it, and the chronicle records what it amounted to.</summary>
         List<Person> Happen(Deed deed)
         {
-            Remember(deed.Actor, deed, true);
+            if (!Off("selfmemory")) Remember(deed.Actor, deed, true);
             var seen = Witness(deed);
             foreach (var w in seen) Feel(w, deed, 1);
             Narrate(deed, seen);
@@ -738,7 +738,7 @@ namespace Anthro.Sim
         static void InheritSocialExpectations(Person child, Person mother)
         {
             foreach (var kv in mother.Expect.Snapshot())
-                if (kv.Key.StartsWith("act:") || kv.Key.StartsWith("wed:") || kv.Key.StartsWith("bound:") || kv.Key.StartsWith("norm:") || kv.Key.StartsWith("god:"))
+                if (kv.Key.StartsWith("act:") || kv.Key.StartsWith("wed:") || kv.Key.StartsWith("bound:") || kv.Key.StartsWith("norm:") || (!Off("god") && kv.Key.StartsWith("god:")))
                     child.Expect.Absorb(kv.Key, kv.Value, 1, kv.Value);
         }
     }

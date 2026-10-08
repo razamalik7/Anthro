@@ -262,7 +262,7 @@ namespace Anthro.Sim.Ecology
             var g = new AnimalGroup(_nextId++, sp, count, x, y)
             {
                 Condition = 1.0,
-                Rng = sim.Rng.Fork((ulong)_nextId)
+                Rng = sim.GodRng.Fork((ulong)_nextId)
             };
             _groups.Add(g);
             Index();

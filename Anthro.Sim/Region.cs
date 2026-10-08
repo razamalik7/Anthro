@@ -24,6 +24,7 @@ namespace Anthro.Sim
         public static readonly double KnownRange = WorldMap.FromMeters(15000);
 
         public readonly Rng Rng;
+        public readonly Rng GodRng;
         public readonly SimClock Clock = new SimClock();
         /// <summary>Events that belong to the land rather than to a band (animals, bands appearing and vanishing).</summary>
         public readonly Chronicle Chronicle = new Chronicle();
@@ -54,6 +55,7 @@ namespace Anthro.Sim
         Region(ulong seed, DiscoveryWeb? web)
         {
             Rng = new Rng(seed);
+            GodRng = new Rng(seed ^ 0x60D5EEDUL, 0x60D5EEDUL);
             Web = web;
             // The story opens in late summer: food is plentiful and autumn's stockpiling is ahead,
             // as it would be for bands that have been living here for generations.
@@ -104,8 +106,12 @@ namespace Anthro.Sim
                 {
                     var model = elders[Rng.Range(0, elders.Count)];
                     foreach (var kv in model.Expect.Snapshot())
-                        if (kv.Key.StartsWith("act:") || kv.Key.StartsWith("tactic:") || kv.Key.StartsWith("wed:") || kv.Key.StartsWith("bound:") || kv.Key.StartsWith("norm:") || kv.Key.StartsWith("god:"))
+                    {
+                        if (kv.Key.StartsWith("act:") || kv.Key.StartsWith("tactic:") || kv.Key.StartsWith("wed:") || kv.Key.StartsWith("bound:") || kv.Key.StartsWith("norm:"))
                             p.Expect.Absorb(kv.Key, kv.Value + Rng.Normal(0, 0.1), 1, kv.Value);
+                        else if (!Simulation.Off("god") && kv.Key.StartsWith("god:"))
+                            p.Expect.Absorb(kv.Key, kv.Value + GodRng.Normal(0, 0.1), 1, kv.Value);
+                    }
                 }
             }
             var tribe = Bands.Where(b => b.Tribe == founders.Tribe).ToList();

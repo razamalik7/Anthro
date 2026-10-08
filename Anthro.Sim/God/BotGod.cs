@@ -110,7 +110,7 @@ namespace Anthro.Sim
             {
                 if (region.Bands.Count > 0)
                 {
-                    var camp = region.Bands[region.Rng.Range(0, region.Bands.Count)];
+                    var camp = region.Bands[region.GodRng.Range(0, region.Bands.Count)];
                     region.CastOmen((int)camp.Band.CampX, (int)camp.Band.CampY, "A radiant sunbeam of warmth descends on the camp", isGood: true);
                 }
             }
@@ -133,7 +133,7 @@ namespace Anthro.Sim
             if (unhelped != null)
             {
                 unhelped.PowerCasted = true;
-                if (region.Favor >= 5 && region.Rng.Chance(0.5))
+                if (region.Favor >= 5 && region.GodRng.Chance(0.5))
                 {
                     region.CastOmen(unhelped.CampX, unhelped.CampY, "The heavens split with wrathful thunder");
                 }
@@ -144,7 +144,7 @@ namespace Anthro.Sim
             {
                 if (region.Bands.Count > 0)
                 {
-                    var camp = region.Bands[region.Rng.Range(0, region.Bands.Count)];
+                    var camp = region.Bands[region.GodRng.Range(0, region.Bands.Count)];
                     region.CastOmen((int)camp.Band.CampX, (int)camp.Band.CampY, "A terrifying roar shakes the hearth");
                 }
             }
@@ -165,16 +165,16 @@ namespace Anthro.Sim
             if (unhelped != null)
             {
                 unhelped.PowerCasted = true;
-                if (region.Rng.Chance(0.5))
+                if (region.GodRng.Chance(0.5))
                 {
                     // Kind
                     if (region.Favor >= 20)
-                        region.CastBounty(unhelped.CampX, unhelped.CampY, animals: region.Rng.Chance(0.5));
+                        region.CastBounty(unhelped.CampX, unhelped.CampY, animals: region.GodRng.Chance(0.5));
                 }
                 else
                 {
                     // Cruel
-                    if (region.Favor >= 5 && region.Rng.Chance(0.5))
+                    if (region.Favor >= 5 && region.GodRng.Chance(0.5))
                         region.CastOmen(unhelped.CampX, unhelped.CampY, "A strange, eerie glow crosses the heavens");
                 }
             }
