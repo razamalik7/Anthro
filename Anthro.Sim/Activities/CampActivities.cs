@@ -229,4 +229,29 @@ namespace Anthro.Sim.Activities
                 P.Expect.Absorb(kv.Key, kv.Value, 0.05 * (0.5 + P.M(MindTrait.Openness)), kv.Value);
         }
     }
+
+    /// <summary>
+    /// A plea to the unseen power for help with a need beyond one's means.
+    /// Done at camp, seen by others. Creates an open request with the God layer.
+    /// </summary>
+    public sealed class Pray : TimedActivity
+    {
+        readonly PrayerNeed _need;
+        readonly Person? _target;
+
+        public Pray(Person p, PrayerNeed need, Person? target = null) : base(p, 1)
+        {
+            Step = "praying";
+            _need = need;
+            _target = target;
+        }
+
+        public override Verb Verb => Verb.Pray;
+        protected override double FatiguePerHour => 0.01;
+
+        protected override void OnHour(Simulation sim)
+        {
+            sim.RegisterPrayer(P, _need, _target);
+        }
+    }
 }

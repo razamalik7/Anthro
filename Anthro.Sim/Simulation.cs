@@ -28,6 +28,8 @@ namespace Anthro.Sim
         /// <summary>Rationing lessons this year (diagnostic): up/down, and whether the family had actually rationed that season.</summary>
         public int RationUp, RationDown, RationHeld, RationNone;
         public int Refusals, Thefts, Fights, Raids;
+        public int PrayersAsked, PrayersResolvedGood, PrayersResolvedBad;
+        public double FavorGain;
         public readonly Dictionary<Activities.Verb, long> Hours = new Dictionary<Activities.Verb, long>();
         internal int Samples;
         public readonly Dictionary<string, int> Deaths = new Dictionary<string, int>();

@@ -266,4 +266,70 @@ public class SimulationTests
         Assert.Equal(2.0, region.Favor); // Insufficient favor, command skipped
         Assert.Single(region.GodEvents);
     }
+
+    [Fact]
+    public void PrayerCoincidenceRaisesCreditAndSpreadsFaith()
+    {
+        var region = Region.Create(7);
+        var sim = region.Founders;
+        var asker = sim.Band.Members[0];
+        var home = sim.HomeOf(asker);
+
+        double initReal = Simulation.GodReal(asker);
+        double initAnswers = Simulation.GodAnswers(asker);
+
+        // Register prayer for hunger
+        sim.RegisterPrayer(asker, PrayerNeed.Hunger);
+        Assert.Single(region.ActivePrayers);
+        var prayer = region.ActivePrayers[0];
+        Assert.False(prayer.Resolved);
+
+        // Hunger not yet relieved -> prayer remains open (no timer)
+        asker.Satiety = 0.2;
+        region.ResolvePrayers();
+        Assert.Single(region.ActivePrayers);
+        Assert.False(prayer.Resolved);
+
+        // Coincidence / food arrives: asker's belly filled and food at home
+        asker.Satiety = 0.9;
+        home.Food.AddMeat(50);
+        region.ResolvePrayers();
+
+        // Prayer resolves as answered
+        Assert.Empty(region.ActivePrayers);
+        Assert.Single(region.ResolvedPrayers);
+        Assert.True(prayer.Resolved);
+        Assert.True(prayer.Answered);
+
+        // Asker's faith rose
+        Assert.True(Simulation.GodAnswers(asker) > initAnswers, "Expected god:answers to rise on answered plea");
+        Assert.True(Simulation.GodReal(asker) > initReal, "Expected god:real to rise on answered plea");
+    }
+
+    [Fact]
+    public void PrayerFailsWhenNeedUnmetAndTargetDies_SpreadingDoubt()
+    {
+        var region = Region.Create(7);
+        var sim = region.Founders;
+        var asker = sim.Band.Members[0];
+        var witness = sim.Band.Members.First(m => m != asker && sim.Grown(m));
+
+        // Start with some baseline belief
+        witness.Expect.Absorb(Simulation.GodAnswersTopic, 0.5, 1.0, 0.1);
+        double initAnswers = Simulation.GodAnswers(witness);
+
+        sim.RegisterPrayer(asker, PrayerNeed.Sickness);
+        Assert.Single(region.ActivePrayers);
+
+        // Asker dies from sickness
+        asker.Health = 0;
+        region.ResolvePrayers();
+
+        var prayer = region.ResolvedPrayers[0];
+        Assert.True(prayer.Resolved);
+        Assert.False(prayer.Answered);
+
+        // Witness observed failed plea -> doubt spreads (god:answers falls)
+        Assert.True(Simulation.GodAnswers(witness) < initAnswers, "Expected witness god:answers to drop on failed plea");
+    }
 }

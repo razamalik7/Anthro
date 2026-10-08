@@ -152,6 +152,7 @@ namespace Anthro.Sim
                 foreach (var c in World.All())
                     if (c.PlantCapacity > c.WildCapacity && c.WildCapacity > 0) c.PlantCapacity -= (c.PlantCapacity - c.WildCapacity) * 0.05;
             foreach (var band in Bands.ToList()) band.Daily();
+            ResolvePrayers();
             using (Profiler.Measure("daily meetings")) Meetings();
             using (Profiler.Measure("daily encounters")) Encounters();
             foreach (var gone in Bands.Where(b => b.Extinct).ToList())
@@ -169,6 +170,7 @@ namespace Anthro.Sim
             _reporting.AddRange(Bands);
             NewWeatherYear();
             ConsiderSchisms();
+            PrayersAskedYear = PrayersResolvedGoodYear = PrayersResolvedBadYear = 0;
             YearEnded?.Invoke(stats);
         }
 

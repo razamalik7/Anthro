@@ -421,6 +421,46 @@ namespace Anthro.Sim.Activities
                     options.Add(new Option(Verb.WatchAndLearn, 0.5 + p.M(MindTrait.Curiosity) * 0.6, () => new WatchAndLearn(p, teacher, skill, interest)));
                 }
             }
+
+            // Praying: a plea for a need beyond one's means (hunger with little food, own or a child's sickness, fear/injury)
+            // value = need_severity * god:real * god:answers.
+            // Praying: a plea for a need beyond one's means (starvation crisis, severe illness of self/child, severe wound).
+            // Value = need_severity * god:real * god:answers. Only when no prayer is already open.
+            if (!Simulation.Off("god") && !Simulation.Off("pray") && maturity > 0.3 && !sim.Region.HasOpenPrayer(p))
+            {
+                double real = Simulation.GodReal(p);
+                double answers = Simulation.GodAnswers(p);
+                if (real > 0.05 && answers > 0.02)
+                {
+                    double hungerNeed = 0;
+                    if (p.Satiety < 0.25 && home.Food.Total <= 0.3 && band.FoodTotal / (people * 0.9) < 0.5)
+                        hungerNeed = (0.25 - p.Satiety) * 4.0;
+
+                    double sickNeed = p.Sickness > 0.3 ? p.Sickness : 0;
+                    Person? sickTarget = null;
+                    var sickKid = home.Members.Where(m => m != p && m.AgeYears(clock) < 10 && m.Sickness > 0.3)
+                                              .OrderByDescending(m => m.Sickness).FirstOrDefault();
+                    if (sickKid != null && sickKid.Sickness > sickNeed)
+                    {
+                        sickNeed = sickKid.Sickness;
+                        sickTarget = sickKid;
+                    }
+
+                    double fearNeed = p.Injury > 0.4 ? p.Injury : 0;
+
+                    PrayerNeed bestNeed = PrayerNeed.Hunger;
+                    double maxNeed = hungerNeed;
+                    if (sickNeed > maxNeed) { maxNeed = sickNeed; bestNeed = PrayerNeed.Sickness; }
+                    if (fearNeed > maxNeed) { maxNeed = fearNeed; bestNeed = PrayerNeed.Danger; }
+
+                    if (maxNeed > 0.1)
+                    {
+                        double score = maxNeed * real * answers;
+                        options.Add(new Option(Verb.Pray, score, () => new Pray(p, bestNeed, sickTarget)));
+                    }
+                }
+            }
+
             // What this person cares about weighs their options: their own drive weights.
             for (int i = 0; i < options.Count; i++)
             {
@@ -433,6 +473,7 @@ namespace Anthro.Sim.Activities
                     Verb.Socialize or Verb.Visit or Verb.Play => p.W(Drive.Company),
                     Verb.Care => p.W(Drive.Family),
                     Verb.Confront or Verb.Attack or Verb.Rally or Verb.Raid => p.W(Drive.Standing) / p.W(Drive.Safety),
+                    Verb.Pray => p.W(Drive.Safety),
                     _ => 1,
                 };
                 if (w != 1) options[i] = new Option(o.Verb, o.Score * w, o.Make);
@@ -445,7 +486,7 @@ namespace Anthro.Sim.Activities
                 bool essential = o.Verb == Verb.Forage || o.Verb == Verb.Hunt || o.Verb == Verb.Fish || o.Verb == Verb.Trap || o.Verb == Verb.Eat || o.Verb == Verb.Rest
                                  || o.Verb == Verb.Care || o.Verb == Verb.Sleep || o.Verb == Verb.Socialize
                                  || o.Verb == Verb.Cook || o.Verb == Verb.GatherWood || o.Verb == Verb.Preserve
-                                 || o.Verb == Verb.Ask || o.Verb == Verb.Take;
+                                 || o.Verb == Verb.Ask || o.Verb == Verb.Take || o.Verb == Verb.Pray;
                 if (!essential) options[i] = new Option(o.Verb, o.Score * (1 - hunger * 0.7), o.Make);
             }
             return options;
