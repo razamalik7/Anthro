@@ -550,5 +550,52 @@ public class SimulationTests
         // Attempting to spend favor while faded fails
         Assert.False(region.SpendFavor(1.0));
     }
+
+    [Fact]
+    public void KindBotAnswersPrayersAndIncreasesFaith()
+    {
+        var region = Region.Create(21);
+        region.Policy = GodPolicy.Kind;
+        var sim = region.Bands[0];
+        var adult = sim.Band.Members.First(m => sim.Grown(m));
+        adult.Expect.Absorb(Simulation.GodRealTopic, 0.8, 1.0, 0.8);
+
+        sim.CampCell.PlantStock = 1.0;
+        var prayer = region.AddPrayer(adult, PrayerNeed.Hunger, (int)sim.Band.CampX, (int)sim.Band.CampY);
+        Assert.False(prayer.PowerCasted);
+
+        // Run step with Kind bot
+        region.Step();
+
+        // Prayer should have received divine answer (bounty power cast)
+        Assert.True(prayer.PowerCasted, "Kind bot should cast power to answer hunger prayer");
+        Assert.True(region.Favor < Region.StartFavorPool, "Favor should have been spent answering prayer");
+        Assert.True(sim.CampCell.PlantStock >= sim.CampCell.PlantCapacity, "Plant bounty should have replenished camp cell");
+    }
+
+    [Fact]
+    public void CruelBotDisplaysOmenAndBreedsFear()
+    {
+        var region = Region.Create(23);
+        region.Policy = GodPolicy.Cruel;
+        var sim = region.Bands[0];
+        var adult = sim.Band.Members.First(m => sim.Grown(m));
+        adult.Expect.Absorb(Simulation.GodRealTopic, 0.8, 1.0, 0.8);
+
+        sim.CampCell.PlantStock = 1.0;
+        var prayer = region.AddPrayer(adult, PrayerNeed.Hunger, (int)sim.Band.CampX, (int)sim.Band.CampY);
+
+        region.Step();
+
+        // Cruel bot does NOT grant food bounty
+        Assert.True(sim.CampCell.PlantStock <= sim.CampCell.PlantCapacity, "Cruel bot must not grant food bounty");
+
+        // When striking omens occur under cruel god, god:kind shifts negative (fear)
+        region.CastOmen((int)sim.Band.CampX, (int)sim.Band.CampY, "The sky blazes with wrath");
+        region.Step();
+
+        double kind = Simulation.GodKind(adult);
+        Assert.True(kind < 0.0, $"Cruel displays should cause god:kind to become negative (fear), got {kind}");
+    }
 }
 

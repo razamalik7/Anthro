@@ -284,9 +284,9 @@ namespace Anthro.Sim.Activities
 
             double real = Simulation.GodReal(P);
             double kind = Simulation.GodKind(P);
-            // Fear factor: appease a wrathful/cruel god
-            double fearFactor = kind < 0 ? (1.0 + Math.Abs(kind) * 1.5) : 1.0;
-            double gain = actual * real * 2.5 * fearFactor;
+            // Disposition factor: fear appeasement when cruel, devotion/gratitude when kind
+            double dispositionFactor = 1.0 + Math.Abs(kind) * 1.5;
+            double gain = actual * real * 2.5 * dispositionFactor;
 
             sim.Region.Favor = Math.Min(sim.Region.FavorCap, sim.Region.Favor + gain);
             sim.ThisYear.FavorGain += gain;

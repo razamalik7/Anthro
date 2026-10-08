@@ -25,6 +25,7 @@ namespace Anthro.Sim
         public bool Answered { get; private set; }
         public long ResolvedDay { get; private set; }
         public bool IsEmber { get; set; }
+        public bool PowerCasted { get; set; }
 
         public Prayer(int id, Person asker, PrayerNeed need, int campX, int campY, long startDay, Person? sickTarget = null)
         {
@@ -173,14 +174,14 @@ namespace Anthro.Sim
                     band.ThisYear.PrayersResolvedGood++;
                     foreach (var w in band.Band.Members.Where(m => m != p.Asker && band.Grown(m)))
                     {
-                        w.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.03, Simulation.GodAnswers(w));
-                        w.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.01, Simulation.GodReal(w));
+                        w.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.12, Simulation.GodAnswers(w));
+                        w.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.08, Simulation.GodReal(w));
                     }
                 }
 
                 // Asker learns answered plea
-                p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.08, Simulation.GodAnswers(p.Asker));
-                p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.05, Simulation.GodReal(p.Asker));
+                p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.25, Simulation.GodAnswers(p.Asker));
+                p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.20, Simulation.GodReal(p.Asker));
 
                 GodEvents.Add(new GodEvent(Clock.Tick, "PrayerAnswered", $"Plea by {p.Asker.Name} for {p.Need} was met", p.CampX, p.CampY));
                 InterpretStrikingEvent(p.CampX, p.CampY, isGood: true, "PrayerAnswered");
@@ -201,14 +202,14 @@ namespace Anthro.Sim
                     band.ThisYear.PrayersResolvedBad++;
                     foreach (var w in band.Band.Members.Where(m => m != p.Asker && band.Grown(m)))
                     {
-                        w.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.03, Simulation.GodAnswers(w));
+                        w.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.06, Simulation.GodAnswers(w));
                     }
                 }
 
                 if (p.Asker.Health > 0)
                 {
-                    p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.08, Simulation.GodAnswers(p.Asker));
-                    p.Asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, 0.03, Simulation.GodReal(p.Asker));
+                    p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.15, Simulation.GodAnswers(p.Asker));
+                    p.Asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, 0.05, Simulation.GodReal(p.Asker));
                 }
                 GodEvents.Add(new GodEvent(Clock.Tick, "PrayerFailed", $"Plea by {p.Asker.Name} for {p.Need} failed", p.CampX, p.CampY));
                 InterpretStrikingEvent(p.CampX, p.CampY, isGood: false, "PrayerFailed");

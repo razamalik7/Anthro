@@ -43,6 +43,7 @@ namespace Anthro.Sim
         public double FavorCapFactor { get; set; } = 10.0;
         public bool GodFaded { get; set; }
         public int IgnoredEmbers { get; set; }
+        public GodPolicy Policy { get; set; } = BotGod.PolicyFromEnv();
 
         public bool SpendFavor(double amount)
         {
@@ -70,8 +71,8 @@ namespace Anthro.Sim
 
         // Power command stubs (T2: API and deterministic queue; implementation in T4/T8)
 
-        public void CastOmen(int x, int y, string description = "A sign in the sky") =>
-            EnqueueGodCommand(new OmenCommand(x, y, description));
+        public void CastOmen(int x, int y, string description = "A sign in the sky", bool isGood = false) =>
+            EnqueueGodCommand(new OmenCommand(x, y, description, isGood));
 
         public void CastBounty(int x, int y, bool animals) =>
             EnqueueGodCommand(new BountyCommand(x, y, animals));
@@ -118,7 +119,8 @@ namespace Anthro.Sim
         {
             readonly int _x, _y;
             readonly string _desc;
-            public OmenCommand(int x, int y, string desc) { _x = x; _y = y; _desc = desc; }
+            readonly bool _isGood;
+            public OmenCommand(int x, int y, string desc, bool isGood = false) { _x = x; _y = y; _desc = desc; _isGood = isGood; }
             public string PowerName => "Omen";
             public double Cost => 5.0;
             public void Execute(Region region)
@@ -135,9 +137,10 @@ namespace Anthro.Sim
                     w.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.08, Simulation.GodReal(w));
                 }
 
+                region.Reputation = Math.Max(-10.0, Math.Min(10.0, region.Reputation + (_isGood ? 0.5 : -0.5)));
                 region.Chronicle.Write(region.Clock, Importance.Notable, $"A striking omen appeared near ({_x}, {_y}): {_desc}.");
                 region.GodEvents.Add(new GodEvent(region.Clock.Tick, "Omen", _desc, _x, _y));
-                region.InterpretStrikingEvent(_x, _y, isGood: false, "Omen");
+                region.InterpretStrikingEvent(_x, _y, isGood: _isGood, "Omen");
             }
         }
 

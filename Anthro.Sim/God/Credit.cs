@@ -74,6 +74,11 @@ namespace Anthro.Sim
 
                         witness.Expect.Absorb(topic, target, weight, current);
                     }
+
+                    // Striking events feed belief in the unseen power and update perceived disposition (GOD-LAYER §1)
+                    double cred = witness.M(MindTrait.Credulity);
+                    witness.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.08 * (0.4 + cred * 0.8), Simulation.GodReal(witness));
+                    witness.Expect.Absorb(Simulation.GodKindTopic, isGood ? 1.0 : -1.0, 0.06 * (0.4 + cred * 0.8) * real, Simulation.GodKind(witness));
                 }
             }
         }

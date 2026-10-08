@@ -476,7 +476,7 @@ namespace Anthro.Sim.Activities
                     double kind = Simulation.GodKind(p);
                     double offerAmount = Math.Min(2.0, home.Food.Total * 0.15);
                     double fearMotive = kind < 0 ? Math.Abs(kind) * p.W(Drive.Safety) * 2.5 : 0.0;
-                    double devotionMotive = kind > 0 ? kind * 0.5 : 0.0;
+                    double devotionMotive = kind > 0 ? kind * (0.5 + p.M(MindTrait.Warmth)) * 2.0 : 0.0;
                     double offerScore = real * (0.15 + fearMotive + devotionMotive) * (home.DaysOfFood > 4.0 ? 1.0 : 0.5);
 
                     if (offerScore > 0.1)
