@@ -125,6 +125,7 @@ namespace Anthro.Sim
 
         public void Step()
         {
+            ApplyGodCommands();
             if (Clock.Hour == 0) using (Profiler.Measure("daily")) Daily();
             foreach (var band in Bands.ToList())
                 if (!band.Extinct) band.StepHour();

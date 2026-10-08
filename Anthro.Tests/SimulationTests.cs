@@ -239,4 +239,31 @@ public class SimulationTests
         double after = Simulation.GodReal(person);
         Assert.True(after < before, $"Expected belief to fade from {before}, got {after}");
     }
+
+    [Fact]
+    public void GodApiInitializesAndExecutesCommandsDeterministically()
+    {
+        var region = Region.Create(7);
+        Assert.Equal(Region.StartFavorPool, region.Favor);
+        Assert.Equal(0.0, region.Reputation);
+        Assert.True(region.FavorCap >= Region.StartFavorPool);
+
+        // Enqueue command before step
+        region.CastOmen(10, 10, "A burning light");
+        Assert.Equal(Region.StartFavorPool, region.Favor); // Not applied yet
+        Assert.Empty(region.GodEvents);
+
+        // Advance 1 hour step
+        region.Step();
+        Assert.Equal(Region.StartFavorPool - 5.0, region.Favor); // Deducted 5 for Omen
+        Assert.Single(region.GodEvents);
+        Assert.Equal("Omen", region.GodEvents[0].Kind);
+
+        // Deplete favor
+        region.Favor = 2.0;
+        region.CastOmen(10, 10);
+        region.Step();
+        Assert.Equal(2.0, region.Favor); // Insufficient favor, command skipped
+        Assert.Single(region.GodEvents);
+    }
 }
