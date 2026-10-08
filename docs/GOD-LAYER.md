@@ -76,3 +76,22 @@ customs and taboos, prophet).
 ## Hand-set numbers (to disclose)
 Power costs and start pool (~50, from PLANNING); favor per act; cap factor k; belief learning rates; fading
 rate. All behind `ANTHRO_OFF` switches (`god`, `pray`, `offer`, `rite`, `credit`, …).
+
+## Decisions 2026-10-08 (owner + Claude, after reviewing T0-T8)
+- **Testing switch:** `ANTHRO_OFF=god` must reproduce the pre-god game exactly; the god layer has its own RNG.
+  "People remember their own deeds" is a base-game change with its own switch (`selfmemory`), analysed
+  separately; leaning toward keeping it.
+- **Idle god:** with no god acting, people may still pray and offer (realistic); measured, not hidden.
+- **Prayers** end by outcomes, not clocks: need met while alive (power or luck) = answered, weighted by how
+  surprising the relief was; asker/child dies = failed; unanswered pleas erode `god:answers` daily (faster
+  when desperate) until the person gives up; signs and blows while a plea is open count. No grief pleas for
+  now. Need is continuous severity, not hard gates.
+- **Nudges** add weight to the decision the person is already making (belief × credulity, maybe favor
+  tier); no extra dice; the UI shows how close the decision is. Following a nudge is itself a lesson.
+- **Kind/cruel is the god's style, not the player's skill.** A kind god can harm (dependence), a cruel one
+  can help (fear curbs theft), if it emerges and is explainable. Gods are judged on several dimensions, not
+  population. A separate "skilful" bot is what should improve survival odds.
+- **Reputation-unlocked direct acts (v1: Heal, Lightning):** unlocked by strong kind/cruel reputation plus
+  enough believers; expensive, limited per generation, deterministic, natural events; the most striking
+  events for credit and blame (smiting the innocent costs believers; healing a killer may teach that the god
+  favours killers). More such acts later.
