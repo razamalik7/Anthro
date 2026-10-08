@@ -172,7 +172,7 @@ namespace Anthro.Sim
         internal static bool OutAlone(Person p) => p.Current is Forage || p.Current is Fish || p.Current is GatherWood || p.Current is Trap;
 
         /// <summary>A deed between people of different bands, witnessed by the band where it happened.</summary>
-        internal List<Person> HappenHere(Deed deed) => Happen(deed);
+        public List<Person> HappenHere(Deed deed) => Happen(deed);
 
         long _awakeTick = -1;
         int _awake;
@@ -260,6 +260,7 @@ namespace Anthro.Sim
         /// <summary>A deed happens: witnesses notice and feel it, and the chronicle records what it amounted to.</summary>
         List<Person> Happen(Deed deed)
         {
+            Remember(deed.Actor, deed, true);
             var seen = Witness(deed);
             foreach (var w in seen) Feel(w, deed, 1);
             Narrate(deed, seen);
@@ -583,7 +584,7 @@ namespace Anthro.Sim
             double heat = anger / (anger + 3);
             double fear = backing / Math.Max(0.1, Strength(p)) * 0.3 + p.Injury;
             return heat * (0.4 + p.M(MindTrait.Temper) * 0.6) * 1.5 + Felt(Expects(p, Act.Confront, RelationTo(p, target)))
-                   - Felt(Guilt(p, target)) * 0.5 - fear * 0.3 * p.W(Drive.Safety);
+                   + GodActValue(p, Act.Confront) - Felt(Guilt(p, target)) * 0.5 - fear * 0.3 * p.W(Drive.Safety);
         }
 
         public void DoConfront(Person accuser, Person accused)

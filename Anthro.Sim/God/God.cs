@@ -119,6 +119,7 @@ namespace Anthro.Sim
 
                 region.Chronicle.Write(region.Clock, Importance.Notable, $"A striking omen appeared near ({_x}, {_y}): {_desc}.");
                 region.GodEvents.Add(new GodEvent(region.Clock.Tick, "Omen", _desc, _x, _y));
+                region.InterpretStrikingEvent(_x, _y, isGood: false, "Omen");
             }
         }
 
@@ -145,6 +146,7 @@ namespace Anthro.Sim
                     }
                     region.Chronicle.Write(region.Clock, Importance.Notable, $"The earth brought forth an abundance of food near ({_x}, {_y}).");
                     region.GodEvents.Add(new GodEvent(region.Clock.Tick, "BountyPlant", $"Plant bounty near ({_x}, {_y})", _x, _y));
+                    region.InterpretStrikingEvent(_x, _y, isGood: true, "BountyPlant");
                 }
                 else
                 {
@@ -171,6 +173,7 @@ namespace Anthro.Sim
                     }
                     region.Chronicle.Write(region.Clock, Importance.Notable, $"Herds of game gathered near ({_x}, {_y}).");
                     region.GodEvents.Add(new GodEvent(region.Clock.Tick, "BountyAnimal", $"Animal bounty near ({_x}, {_y})", _x, _y));
+                    region.InterpretStrikingEvent(_x, _y, isGood: true, "BountyAnimal");
                 }
             }
         }
@@ -212,6 +215,7 @@ namespace Anthro.Sim
                     region.Chronicle.Write(region.Clock, Importance.Notable, $"A bitter harshness gripped the land ({_season}).");
                 }
                 region.GodEvents.Add(new GodEvent(region.Clock.Tick, "Weather", $"Weather changed for {_season} (delta {_delta:F1})"));
+                region.InterpretStrikingEvent(0, 0, isGood: _delta > 0, "Weather");
             }
         }
 

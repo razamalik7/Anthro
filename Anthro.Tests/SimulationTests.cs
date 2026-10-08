@@ -420,4 +420,53 @@ public class SimulationTests
         Assert.True(child.Body[(int)BodyTrait.Immunity] >= 0.3);
         Assert.True(mother.Alive, "Expected mother to survive complication-free blessed birth");
     }
+
+    [Fact]
+    public void OmenAfterWitnessedTakeDropsGodTakeAndSuppressesTaking()
+    {
+        var region = Region.Create(42);
+        var sim = region.Founders;
+        var ka = sim.Band.Members[0];
+        var victim = sim.Band.Members[1];
+        var witness = sim.Band.Members[2];
+
+        // Ensure witness believes in the god
+        witness.Expect.Absorb(Simulation.GodRealTopic, 0.8, 1.0, 0.2);
+        double initGodTake = witness.Expect.Get("god:take", 0.0);
+        Assert.Equal(0.0, initGodTake);
+
+        // Ka takes food from victim's hearth, witnessed in camp
+        var hearth = sim.HomeOf(victim);
+        var takeDeed = new Deed
+        {
+            Day = sim.Clock.Day,
+            Actor = ka,
+            Act = Act.Take,
+            Target = victim,
+            Hearth = hearth,
+            Amount = 2.0,
+            Context = Simulation.Lesson(Act.Take, sim.RelationTo(ka, victim))
+        };
+        witness.Current = new Anthro.Sim.Activities.Socialize(witness);
+        sim.HappenHere(takeDeed);
+        if (!witness.KnownDeeds.Contains(takeDeed))
+        {
+            witness.KnownDeeds.Add(takeDeed);
+            witness.Deeds.Add(new Remembered(takeDeed, true));
+        }
+
+        // An omen occurs right after the take: the sky burns
+        int cx = (int)sim.Band.CampX;
+        int cy = (int)sim.Band.CampY;
+        region.CastOmen(cx, cy, "The sky burns with ominous fire");
+        region.Step();
+
+        // The witness tied the ominous sign to the recent take -> god:take dropped!
+        double afterGodTake = witness.Expect.Get("god:take", 0.0);
+        Assert.True(afterGodTake < 0.0, $"Expected god:take to drop below 0, got {afterGodTake}");
+
+        // Believer valuation of taking now includes negative divine consequence
+        double godPenalty = Simulation.GodActValue(witness, Act.Take);
+        Assert.True(godPenalty < 0.0, $"Expected divine penalty to be negative, got {godPenalty}");
+    }
 }

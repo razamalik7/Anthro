@@ -84,7 +84,7 @@ namespace Anthro.Sim
             // and at peace with the family has no cause to rob them, however well it went last time).
             double motive = anger / (anger + 3) + hunger * plenty;
             bool off = Off("rallymotive");
-            double learned = Felt(Expects(p, Act.Take, rel, true)) * (off ? 1 : Math.Min(1, motive * 2));
+            double learned = (Felt(Expects(p, Act.Take, rel, true)) + GodActValue(p, Act.Take)) * (off ? 1 : Math.Min(1, motive * 2));
             // Joining a gang is taking sides: some peoples close ranks readily, others keep out of it.
             double sides = off || joining ? (Sides(p) - 0.4) * 0.5 : 0;
             return motive * (0.3 + p.M(MindTrait.Temper)) + learned + sides
@@ -204,7 +204,7 @@ namespace Anthro.Sim
             // one full of friends and kin. Against another people, it's fighting outsiders.
             var rel = foe.Tribe != Tribe ? Relation.Outsider : CampRelation(p, foe);
             return anger / (anger + 4) * (0.3 + p.M(MindTrait.Temper)) * 1.5 + Felt(Expects(p, Act.Attack, rel))
-                   + p.Drives[(int)Drive.Standing] * 0.2
+                   + GodActValue(p, Act.Attack) + p.Drives[(int)Drive.Standing] * 0.2
                    - Math.Min(1.5, odds) * (0.3 + kids * 0.1) * (1.2 - p.M(MindTrait.Boldness) * 0.6) * p.W(Drive.Safety);
         }
 

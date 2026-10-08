@@ -269,8 +269,10 @@ namespace Anthro.Sim.Activities
                     var owner = h.Adults(clock).OrderByDescending(a => p.GetAffinity(a)).FirstOrDefault();
                     double guilt = owner == null ? 0 : Simulation.Guilt(p, owner);
                     double plenty = Math.Min(1, Simulation.SpareFor(h, home) / amount);
-                    double ask = Simulation.Expects(p, Act.Ask, rel) * plenty;
-                    double take = pSeen * Simulation.Expects(p, Act.Take, rel, true) + (1 - pSeen) * Simulation.Expects(p, Act.Take, rel, false) - guilt;
+                    double godAsk = Simulation.GodActValue(p, Act.Ask);
+                    double ask = (Simulation.Expects(p, Act.Ask, rel) + godAsk) * plenty;
+                    double godTake = Simulation.GodActValue(p, Act.Take);
+                    double take = pSeen * Simulation.Expects(p, Act.Take, rel, true) + (1 - pSeen) * Simulation.Expects(p, Act.Take, rel, false) - guilt + godTake;
                     if (ask > bestAsk) { bestAsk = ask; askAt = h; }
                     if (take > bestTake) { bestTake = take; takeAt = h; }
                 }
@@ -309,7 +311,8 @@ namespace Anthro.Sim.Activities
                     double confront = sim.ConfrontValue(p, target, backing);
                     // Fear of them, and of the kin and friends who'd stand with them.
                     double fear = backing / Math.Max(0.1, p.B(BodyTrait.Strength) * p.Health) * 0.3 + p.Injury;
-                    double attack = heat * p.M(MindTrait.Temper) * 1.5 + Simulation.Felt(Simulation.Expects(p, Act.Attack, rel)) - guilt - fear * p.W(Drive.Safety);
+                    double godAttack = Simulation.GodActValue(p, Act.Attack);
+                    double attack = heat * p.M(MindTrait.Temper) * 1.5 + Simulation.Felt(Simulation.Expects(p, Act.Attack, rel)) - guilt - fear * p.W(Drive.Safety) + godAttack;
                     var t = target;
                     if (confront > 0) options.Add(new Option(Verb.Confront, confront, () => new Confront(p, t)));
                     if (attack > 0) options.Add(new Option(Verb.Attack, attack, () => new Assault(p, t)));
@@ -332,7 +335,8 @@ namespace Anthro.Sim.Activities
                         double heat = hate / (hate + 3);
                         double guilt = Simulation.Felt(Simulation.Guilt(p, alone)) * 0.5;
                         double fear = alone.B(BodyTrait.Strength) * alone.Health / Math.Max(0.1, p.B(BodyTrait.Strength) * p.Health) * 0.3 + p.Injury;
-                        double ambush = heat * p.M(MindTrait.Temper) * 1.5 + Simulation.Felt(Simulation.Expects(p, Act.Attack, rel, false)) - guilt - fear * p.W(Drive.Safety);
+                        double godAmbush = Simulation.GodActValue(p, Act.Attack);
+                        double ambush = heat * p.M(MindTrait.Temper) * 1.5 + Simulation.Felt(Simulation.Expects(p, Act.Attack, rel, false)) - guilt - fear * p.W(Drive.Safety) + godAmbush;
                         var t = alone;
                         if (ambush > 0) options.Add(new Option(Verb.Attack, ambush, () => new Ambush(p, t)));
                     }

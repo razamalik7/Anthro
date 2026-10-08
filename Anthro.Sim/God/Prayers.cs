@@ -171,6 +171,7 @@ namespace Anthro.Sim
                     p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.05, Simulation.GodReal(p.Asker));
 
                     GodEvents.Add(new GodEvent(Clock.Tick, "PrayerAnswered", $"Plea by {p.Asker.Name} for {p.Need} was met", p.CampX, p.CampY));
+                    InterpretStrikingEvent(p.CampX, p.CampY, isGood: true, "PrayerAnswered");
                 }
                 else
                 {
@@ -191,6 +192,7 @@ namespace Anthro.Sim
                         p.Asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, 0.03, Simulation.GodReal(p.Asker));
                     }
                     GodEvents.Add(new GodEvent(Clock.Tick, "PrayerFailed", $"Plea by {p.Asker.Name} for {p.Need} failed", p.CampX, p.CampY));
+                    InterpretStrikingEvent(p.CampX, p.CampY, isGood: false, "PrayerFailed");
                 }
             }
         }
