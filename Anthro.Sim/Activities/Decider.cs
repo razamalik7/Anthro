@@ -437,8 +437,12 @@ namespace Anthro.Sim.Activities
                 if (real > 0.05 && answers > 0.02)
                 {
                     double hungerNeed = 0;
-                    if (p.Satiety < 0.25 && home.Food.Total <= 0.3 && band.FoodTotal / (people * 0.9) < 0.5)
-                        hungerNeed = (0.25 - p.Satiety) * 4.0;
+                    double foodPerPerson = band.FoodTotal / Math.Max(1, people);
+                    if (p.Satiety < 0.8)
+                    {
+                        double desperation = (1.0 - p.Satiety) * Math.Max(0, 1.0 - foodPerPerson / 3.0);
+                        hungerNeed = desperation * 1.5;
+                    }
 
                     double sickNeed = p.Sickness > 0.3 ? p.Sickness : 0;
                     Person? sickTarget = null;
@@ -471,13 +475,13 @@ namespace Anthro.Sim.Activities
             if (!Simulation.Off("god") && !Simulation.Off("offer") && maturity > 0.6 && Simulation.AtCamp(p) && home.Food.Total >= 2.0 && home.DaysOfFood >= 2.0)
             {
                 double real = Simulation.GodReal(p);
-                if (real > 0.25)
+                if (real > 0.05)
                 {
                     double kind = Simulation.GodKind(p);
                     double offerAmount = Math.Min(2.0, home.Food.Total * 0.15);
-                    double fearMotive = kind < 0 ? Math.Abs(kind) * p.W(Drive.Safety) * 2.5 : 0.0;
-                    double devotionMotive = kind > 0 ? kind * (0.5 + p.M(MindTrait.Warmth)) * 2.0 : 0.0;
-                    double offerScore = real * (0.15 + fearMotive + devotionMotive) * (home.DaysOfFood > 4.0 ? 1.0 : 0.5);
+                    double fearMotive = kind < -0.2 ? Math.Abs(kind) * p.W(Drive.Safety) * 2.5 : 0.0;
+                    double devotionMotive = kind > 0.2 ? kind * (0.5 + p.M(MindTrait.Warmth)) * 2.0 : 0.0;
+                    double offerScore = real * (Simulation.GodOffer(p) + fearMotive + devotionMotive) * (home.DaysOfFood > 4.0 ? 1.0 : 0.5);
 
                     if (offerScore > 0.1)
                     {

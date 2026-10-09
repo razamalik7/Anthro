@@ -84,81 +84,93 @@ namespace Anthro.Sim
             if (Simulation.Off("god") || Simulation.Off("pray")) return;
             if (ActivePrayers.Count == 0) return;
 
-            var toResolve = new List<(Prayer prayer, bool answered)>();
+            var toResolve = new List<(Prayer prayer, bool answered, double surprise)>();
+            var toGiveUp = new List<Prayer>();
 
             foreach (var prayer in ActivePrayers)
             {
                 var asker = prayer.Asker;
                 var target = prayer.SickTarget ?? asker;
-                long daysOpen = Clock.Day - prayer.StartDay;
+                
+                // Each day a plea goes unanswered, it erodes belief
+                if (Clock.Hour == 0)
+                {
+                    double desperation = 0.01;
+                    if (prayer.Need == PrayerNeed.Hunger) desperation = Math.Max(0.01, (1.0 - asker.Satiety) * 0.05);
+                    if (prayer.Need == PrayerNeed.Sickness) desperation = Math.Max(0.01, target.Sickness * 0.05);
+                    if (prayer.Need == PrayerNeed.Danger) desperation = Math.Max(0.01, asker.Injury * 0.05);
+                    asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, desperation, Simulation.GodAnswers(asker));
+                    asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, desperation * 0.5, Simulation.GodReal(asker));
+                    
+                    if (Simulation.GodAnswers(asker) < 0.02)
+                    {
+                        toGiveUp.Add(prayer);
+                        continue;
+                    }
+                }
 
                 if (prayer.Need == PrayerNeed.Hunger)
                 {
                     if (asker.Health <= 0)
                     {
-                        toResolve.Add((prayer, false));
+                        toResolve.Add((prayer, false, 1.0));
                     }
-                    else if (asker.Satiety >= 0.7 && (asker.Home?.DaysOfFood ?? 0) >= 3.0)
+                    else if (asker.Satiety >= 0.7)
                     {
-                        toResolve.Add((prayer, true));
-                    }
-                    else if (daysOpen >= 5)
-                    {
-                        // Starved on without divine answer: gives up
-                        toResolve.Add((prayer, false));
+                        // surprise: if they were starving and land is bare, high. If ordinary meal, low.
+                        double daysFood = asker.Home?.DaysOfFood ?? 0;
+                        double surprise = daysFood <= 0.05 ? 1.0 : 0.1;
+                        toResolve.Add((prayer, true, surprise));
                     }
                 }
                 else if (prayer.Need == PrayerNeed.Sickness)
                 {
                     if (target.Health <= 0)
                     {
-                        toResolve.Add((prayer, false));
+                        toResolve.Add((prayer, false, 1.0));
                     }
-                    else if (target.Sickness <= 0 && target.Health >= 0.75)
+                    else if (target.Sickness <= 0 && target.Health >= 0.7)
                     {
-                        toResolve.Add((prayer, true));
-                    }
-                    else if (daysOpen >= 7)
-                    {
-                        // Sickness dragged on without relief: gives up
-                        toResolve.Add((prayer, false));
+                        toResolve.Add((prayer, true, 0.1));
                     }
                 }
                 else if (prayer.Need == PrayerNeed.Danger)
                 {
                     if (asker.Health <= 0)
                     {
-                        toResolve.Add((prayer, false));
+                        toResolve.Add((prayer, false, 1.0));
                     }
-                    else if (asker.Injury <= 0.05 && daysOpen >= 2)
+                    else if (asker.Injury <= 0.05)
                     {
-                        toResolve.Add((prayer, true));
-                    }
-                    else if (daysOpen >= 5)
-                    {
-                        toResolve.Add((prayer, false));
+                        toResolve.Add((prayer, true, 0.1));
                     }
                 }
                 else if (prayer.Need == PrayerNeed.Grief)
                 {
                     if (asker.Health <= 0)
                     {
-                        toResolve.Add((prayer, false));
+                        toResolve.Add((prayer, false, 1.0));
                     }
-                    else if (daysOpen >= 15)
-                    {
-                        toResolve.Add((prayer, true));
-                    }
+                    // Grief pleas drop for now, but if they are open, just give up eventually
                 }
             }
 
-            foreach (var (p, answered) in toResolve)
+            foreach (var p in toGiveUp)
             {
-                ResolvePrayer(p, answered);
+                p.Resolve(false, Clock.Day);
+                ActivePrayers.Remove(p);
+                ResolvedPrayers.Add(p);
+                if (ResolvedPrayers.Count > 500) ResolvedPrayers.RemoveAt(0);
+                GodEvents.Add(new GodEvent(Clock.Tick, "PrayerFaded", $"Plea by {p.Asker.Name} for {p.Need} was given up", p.CampX, p.CampY));
+            }
+
+            foreach (var (p, answered, surprise) in toResolve)
+            {
+                ResolvePrayer(p, answered, surprise);
             }
         }
 
-        public void ResolvePrayer(Prayer p, bool answered)
+        public void ResolvePrayer(Prayer p, bool answered, double surprise = 1.0)
         {
             p.Resolve(answered, Clock.Day);
             ActivePrayers.Remove(p);
@@ -174,22 +186,23 @@ namespace Anthro.Sim
                     band.ThisYear.PrayersResolvedGood++;
                     foreach (var w in band.Band.Members.Where(m => m != p.Asker && band.Grown(m)))
                     {
-                        w.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.12, Simulation.GodAnswers(w));
-                        w.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.08, Simulation.GodReal(w));
+                        w.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.12 * surprise, Simulation.GodAnswers(w));
+                        w.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.08 * surprise, Simulation.GodReal(w));
                     }
                 }
 
                 // Asker learns answered plea
-                p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.25, Simulation.GodAnswers(p.Asker));
-                p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.20, Simulation.GodReal(p.Asker));
+                p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.25 * surprise, Simulation.GodAnswers(p.Asker));
+                p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.20 * surprise, Simulation.GodReal(p.Asker));
 
-                GodEvents.Add(new GodEvent(Clock.Tick, "PrayerAnswered", $"Plea by {p.Asker.Name} for {p.Need} was met", p.CampX, p.CampY));
-                InterpretStrikingEvent(p.CampX, p.CampY, isGood: true, "PrayerAnswered");
+                GodEvents.Add(new GodEvent(Clock.Tick, "PrayerAnswered", $"Plea by {p.Asker.Name} for {p.Need} was met (surprise: {surprise:F2})", p.CampX, p.CampY));
+                
+                if (surprise > 0.5) InterpretStrikingEvent(p.CampX, p.CampY, isGood: true, "PrayerAnswered");
 
                 if (p.IsEmber)
                 {
                     IgnoredEmbers = 0;
-                    p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.40, Simulation.GodReal(p.Asker));
+                    p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.40 * surprise, Simulation.GodReal(p.Asker));
                     GodEvents.Add(new GodEvent(Clock.Tick, "EmberAnswered", $"An ember plea was answered! Faith rekindles in {p.Asker.Name}", p.CampX, p.CampY));
                 }
             }
@@ -212,7 +225,6 @@ namespace Anthro.Sim
                     p.Asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, 0.05, Simulation.GodReal(p.Asker));
                 }
                 GodEvents.Add(new GodEvent(Clock.Tick, "PrayerFailed", $"Plea by {p.Asker.Name} for {p.Need} failed", p.CampX, p.CampY));
-                InterpretStrikingEvent(p.CampX, p.CampY, isGood: false, "PrayerFailed");
 
                 if (p.IsEmber)
                 {

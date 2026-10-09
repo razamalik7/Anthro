@@ -69,15 +69,23 @@ namespace Anthro.Sim.People
         /// <summary>Active divine nudges at life branch points (T8): fork -> choice.</summary>
         public readonly Dictionary<string, string> Nudges = new Dictionary<string, string>();
 
-        public bool TryConsumeNudge(string fork, out string choice)
+        public double ConsumeNudgeWeight(string fork, double basePush = 0.5, params string[] targetChoices)
         {
-            if (Nudges.TryGetValue(fork, out choice))
+            if (Nudges.TryGetValue(fork, out var pushedChoice))
             {
                 Nudges.Remove(fork);
-                return true;
+                double weight = basePush * Simulation.GodReal(this) * (0.5 + M(MindTrait.Credulity));
+                return targetChoices.Contains(pushedChoice) ? weight : -weight;
             }
-            choice = "";
-            return false;
+            return 0.0;
+        }
+
+        public string NudgeOutlook(string fork, string choice, double basePush = 0.5)
+        {
+            double weight = basePush * Simulation.GodReal(this) * (0.5 + M(MindTrait.Credulity));
+            if (weight < 0.1) return "set on it, a whisper won't do it";
+            if (weight < 0.3) return "torn, might listen";
+            return "torn, likely to listen";
         }
         /// <summary>Fondness for each person (0 to 1). Grows with time together; fades without it; drops with conflict.</summary>
         public readonly Dictionary<int, double> Affinity = new Dictionary<int, double>();
@@ -108,6 +116,9 @@ namespace Anthro.Sim.People
         /// <summary>Deeds they've seen or heard about, newest last (a few dozen at most).</summary>
         public readonly List<Remembered> Deeds = new List<Remembered>();
         public readonly HashSet<Deed> KnownDeeds = new HashSet<Deed>();
+        /// <summary>Their own recent acts (recent season), kept separate to not crowd out memory of others.</summary>
+        public readonly List<Remembered> OwnDeeds = new List<Remembered>();
+        public readonly HashSet<Deed> KnownOwnDeeds = new HashSet<Deed>();
         /// <summary>What they know of the land: places, game seen lately, other camps.</summary>
         public readonly MentalMap Map = new MentalMap();
         /// <summary>The household this person eats and lives with.</summary>

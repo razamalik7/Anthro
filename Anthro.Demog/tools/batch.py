@@ -20,10 +20,18 @@ def run_world(args):
     out_file = os.path.join(RUNS_DIR, f"{prefix}_{seed}.txt")
     err_file = os.path.join(RUNS_DIR, f"{prefix}_{seed}_err.txt")
     
-    cmd = [DOTNET_EXE, DEMOG_DLL, str(seed), str(years), str(kin_camps)] + extra_args
+    cmd = [DOTNET_EXE, DEMOG_DLL, str(seed), str(years), str(kin_camps)]
+    env_vars = os.environ.copy()
+    for arg in extra_args:
+        if '=' in arg and not arg.startswith('-'):
+            k, v = arg.split('=', 1)
+            env_vars[k] = v
+        else:
+            cmd.append(arg)
+
     t0 = time.time()
     with open(out_file, "w", encoding="utf-8") as out, open(err_file, "w", encoding="utf-8") as err:
-        p = subprocess.Popen(cmd, stdout=out, stderr=err, cwd=RUNS_DIR)
+        p = subprocess.Popen(cmd, stdout=out, stderr=err, cwd=RUNS_DIR, env=env_vars)
         ret = p.wait()
     elapsed = time.time() - t0
     return seed, ret, elapsed

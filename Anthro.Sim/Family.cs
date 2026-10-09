@@ -222,30 +222,20 @@ namespace Anthro.Sim
         public bool WouldPair(Person a, Person b, Simulation aBand, Simulation bBand)
         {
             if (!CouldPair(a, b)) return false;
+            
+            double nudgeA = (!Off("god") && !Off("nudge")) ? a.ConsumeNudgeWeight("marry", 0.5, "yes", "pair") : 0.0;
+            double nudgeB = (!Off("god") && !Off("nudge")) ? b.ConsumeNudgeWeight("marry", 0.5, "yes", "pair") : 0.0;
 
-            if (!Off("god") && !Off("nudge"))
-            {
-                if (a.TryConsumeNudge("marry", out var nA))
-                {
-                    if (nA == "no" || nA == "refuse") return false;
-                    if (nA == "yes" || nA == "pair") return true;
-                }
-                if (b.TryConsumeNudge("marry", out var nB))
-                {
-                    if (nB == "no" || nB == "refuse") return false;
-                    if (nB == "yes" || nB == "pair") return true;
-                }
-            }
+            if (Math.Min(a.GetAffinity(b), b.GetAffinity(a)) < 0.2 && nudgeA <= 0 && nudgeB <= 0) return false;
 
-            if (Math.Min(a.GetAffinity(b), b.GetAffinity(a)) < 0.2) return false;
-            bool Best(Person p, Person o, Simulation pb)
+            bool Best(Person p, Person o, Simulation pb, double nudge)
             {
-                double mine = Desire(p, o, pb);
+                double mine = Desire(p, o, pb) + nudge;
                 foreach (var other in pb.Band.Members)
                     if (other != o && CouldPair(p, other) && Desire(p, other, pb) > mine + 0.05) return false;
                 return true;
             }
-            bool willPair = Best(a, b, aBand) && Best(b, a, bBand);
+            bool willPair = Best(a, b, aBand, nudgeA) && Best(b, a, bBand, nudgeB);
             if (willPair && !Off("god"))
             {
                 Region.GodEvents.Add(new GodEvent(Clock.Tick, "ForkPair", $"{a.Name} and {b.Name} are considering pairing", (int)Band.CampX, (int)Band.CampY));
@@ -266,14 +256,7 @@ namespace Anthro.Sim
                         && Band.Members.Contains(drawnTo)
                         && !Band.Members.Any(o => o != p && CouldPair(drawnTo, o) && Desire(drawnTo, o, this) > Desire(drawnTo, p, this));
 
-            if (!Off("god") && !Off("nudge"))
-            {
-                if (p.TryConsumeNudge("leave", out var nL))
-                {
-                    if (nL == "stay" || nL == "no") return;
-                    if (nL == "leave" || nL == "yes") { Separate(p, partner, free ? drawnTo : null); return; }
-                }
-            }
+            double nudgeGo = (!Off("god") && !Off("nudge")) ? p.ConsumeNudgeWeight("leave", 0.5, "leave", "yes") : 0.0;
 
             int young = p.Children.Count(c => c.Alive && c.AgeYears(Clock) < 10);
             // A pair bond runs deeper than friendship, and deepens with the years together.
@@ -281,6 +264,7 @@ namespace Anthro.Sim
             double stay = p.GetAffinity(partner) * (1.2 + years * 0.05) + young * 0.3 + p.M(MindTrait.Warmth) * 0.2 * p.W(Drive.Family) - p.GetGrievance(partner) * 0.1
                           - strain;
             double go = free ? Desire(p, drawnTo!, this) : 0;
+            go += nudgeGo;
             if (go <= stay) return;
             if (!Off("god"))
                 Region.GodEvents.Add(new GodEvent(Clock.Tick, "ForkLeave", $"{p.Name} is leaving {partner.Name}", (int)Band.CampX, (int)Band.CampY));

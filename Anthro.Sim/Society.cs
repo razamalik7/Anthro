@@ -215,9 +215,19 @@ namespace Anthro.Sim
 
         static void Remember(Person p, Deed deed, bool firsthand)
         {
-            if (!p.KnownDeeds.Add(deed)) return;
-            p.Deeds.Add(new Remembered(deed, firsthand));
-            if (p.Deeds.Count > 40) { p.KnownDeeds.Remove(p.Deeds[0].Deed); p.Deeds.RemoveAt(0); }
+            if (p == deed.Actor && !Off("selfmemory"))
+            {
+                if (!p.KnownOwnDeeds.Add(deed)) return;
+                p.OwnDeeds.Add(new Remembered(deed, firsthand));
+                // recent season (approx 10-20 deeds, let's keep 20)
+                if (p.OwnDeeds.Count > 20) { p.KnownOwnDeeds.Remove(p.OwnDeeds[0].Deed); p.OwnDeeds.RemoveAt(0); }
+            }
+            else
+            {
+                if (!p.KnownDeeds.Add(deed)) return;
+                p.Deeds.Add(new Remembered(deed, firsthand));
+                if (p.Deeds.Count > 40) { p.KnownDeeds.Remove(p.Deeds[0].Deed); p.Deeds.RemoveAt(0); }
+            }
         }
 
         /// <summary>
@@ -654,20 +664,10 @@ namespace Anthro.Sim
             bool overFood = answers?.Act == Act.Take;
             bool here = Band.Members.Contains(attacker) && Band.Members.Contains(target);
             // Where a people settles grudges one on one, the two fight it out and the rest watch.
-            bool duel = here && Rng.Chance((Duel(attacker) + Duel(target)) / 2);
-            if (!Off("god") && !Off("nudge"))
-            {
-                if (attacker.TryConsumeNudge("duel", out var nA))
-                {
-                    if (nA == "peace" || nA == "no") duel = false;
-                    else if (nA == "fight" || nA == "duel" || nA == "yes") duel = true;
-                }
-                else if (target.TryConsumeNudge("duel", out var nT))
-                {
-                    if (nT == "peace" || nT == "no") duel = false;
-                    else if (nT == "fight" || nT == "duel" || nT == "yes") duel = true;
-                }
-            }
+            double nudgeA = (!Off("god") && !Off("nudge")) ? attacker.ConsumeNudgeWeight("duel", 0.5, "fight", "duel", "yes") : 0.0;
+            double nudgeT = (!Off("god") && !Off("nudge")) ? target.ConsumeNudgeWeight("duel", 0.5, "fight", "duel", "yes") : 0.0;
+
+            bool duel = here && Rng.Chance((Duel(attacker) + Duel(target)) / 2 + nudgeA + nudgeT);
             if (duel && !Off("god"))
             {
                 Region.GodEvents.Add(new GodEvent(Clock.Tick, "ForkDuel", $"{attacker.Name} challenged {target.Name} to a duel", (int)Band.CampX, (int)Band.CampY));

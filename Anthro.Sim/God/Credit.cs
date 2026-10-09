@@ -40,7 +40,8 @@ namespace Anthro.Sim
                     Remembered? mostSalient = null;
                     double bestSalience = 0.0;
 
-                    foreach (var rem in witness.Deeds)
+                    var allDeeds = witness.Deeds.Concat(witness.OwnDeeds);
+                    foreach (var rem in allDeeds)
                     {
                         var d = rem.Deed;
                         long ageDays = Clock.Day - d.Day;
