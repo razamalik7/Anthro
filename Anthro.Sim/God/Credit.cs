@@ -74,12 +74,34 @@ namespace Anthro.Sim
                         double current = witness.Expect.Get(topic, 0.0);
 
                         witness.Expect.Absorb(topic, target, weight, current);
+
+                        // If the deed was giving food to the hearth, or an offering, teach/reinforce god:offer
+                        if (deed.Act == Act.Offer || (deed.Act == Act.Give && deed.Hearth != null))
+                        {
+                            double curOffer = witness.Expect.Get(Simulation.GodOfferTopic, 0.0);
+                            witness.Expect.Absorb(Simulation.GodOfferTopic, target, weight, curOffer);
+                        }
                     }
 
                     // Striking events feed belief in the unseen power and update perceived disposition (GOD-LAYER §1)
                     double cred = witness.M(MindTrait.Credulity);
                     witness.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.08 * (0.4 + cred * 0.8), Simulation.GodReal(witness));
                     witness.Expect.Absorb(Simulation.GodKindTopic, isGood ? 1.0 : -1.0, 0.06 * (0.4 + cred * 0.8) * real, Simulation.GodKind(witness));
+
+                    // Events while a plea is open count (brief B1): sign (belief up) or refusal (belief/kind down)
+                    if (HasOpenPrayer(witness))
+                    {
+                        if (isGood)
+                        {
+                            witness.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.10 * (0.4 + cred * 0.8), Simulation.GodAnswers(witness));
+                            witness.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.08 * (0.4 + cred * 0.8), Simulation.GodReal(witness));
+                        }
+                        else
+                        {
+                            witness.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.08, Simulation.GodAnswers(witness));
+                            witness.Expect.Absorb(Simulation.GodKindTopic, -1.0, 0.06, Simulation.GodKind(witness));
+                        }
+                    }
                 }
             }
         }

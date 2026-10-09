@@ -55,8 +55,9 @@ def main():
     print(f"Starting batch '{prefix}' for seeds {start_seed}..{end_seed} ({years} years, {kin_camps} kin camps)...")
     t_start = time.time()
     
-    # Run with up to 16 parallel workers
-    with ProcessPoolExecutor(max_workers=min(len(seeds), 16)) as executor:
+    # Run in parallel matching seed count and available CPU cores (up to 22 workers on 24-core CPU)
+    workers = min(len(seeds), max(1, (os.cpu_count() or 20) - 2))
+    with ProcessPoolExecutor(max_workers=workers) as executor:
         futures = {executor.submit(run_world, t): t[0] for t in tasks}
         for future in as_completed(futures):
             seed, ret, elapsed = future.result()

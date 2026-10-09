@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Anthro.Sim.Core;
 using Anthro.Sim.People;
+using Anthro.Sim.World;
 
 namespace Anthro.Sim
 {
@@ -26,6 +27,11 @@ namespace Anthro.Sim
         public long ResolvedDay { get; private set; }
         public bool IsEmber { get; set; }
         public bool PowerCasted { get; set; }
+        public double InitialDaysFood { get; set; }
+        public double InitialPlenty { get; set; }
+        public double InitialSeverity { get; set; }
+        public long LastSignDay { get; set; } = -1;
+        public long LastRefusalDay { get; set; } = -1;
 
         public Prayer(int id, Person asker, PrayerNeed need, int campX, int campY, long startDay, Person? sickTarget = null)
         {
@@ -64,6 +70,22 @@ namespace Anthro.Sim
             if (existing != null) return existing;
 
             var prayer = new Prayer(_nextPrayerId++, asker, need, campX, campY, Clock.Day, sickTarget);
+            var band = Bands.FirstOrDefault(b => b.Band.Members.Contains(asker));
+            if (need == PrayerNeed.Hunger)
+            {
+                prayer.InitialDaysFood = asker.Home?.DaysOfFood ?? 0.0;
+                prayer.InitialPlenty = (band != null && band.ForagePatches.Count > 0) ? Math.Min(1.0, band.ForagePatches.Sum(c => c.PlantStock) / 50.0) : 0.0;
+                prayer.InitialSeverity = Math.Max(0.1, 1.0 - asker.Satiety);
+            }
+            else if (need == PrayerNeed.Sickness)
+            {
+                prayer.InitialSeverity = (sickTarget ?? asker).Sickness;
+            }
+            else if (need == PrayerNeed.Danger)
+            {
+                prayer.InitialSeverity = asker.Injury;
+            }
+
             if (Favor <= 5.0 && People.Count(Simulation.IsBeliever) <= 2)
             {
                 prayer.IsEmber = true;
@@ -109,6 +131,36 @@ namespace Anthro.Sim
                     }
                 }
 
+                // Signs while a plea is open (brief B1, Fix 3)
+                // An omen nearby, a bounty nearby, or a big hunt brought in reads as a sign (belief up)
+                // A death in the family or a hard frost reads as a refusal (belief down)
+                var band = Bands.FirstOrDefault(b => b.Band.Members.Contains(asker));
+                if (band != null && Clock.Hour == 12)
+                {
+                    bool omenNearby = GodEvents.Any(e => e.Tick >= Clock.Tick - 24 && (e.Kind == "Omen" || e.Kind.StartsWith("Bounty")) && WorldMap.Distance(e.X, e.Y, prayer.CampX, prayer.CampY) <= WorldMap.FromMeters(5000));
+                    bool bigHunt = band.ThisYear.Hunted >= 20 && band.Band.Members.Any(m => m.LastHuntDay == Clock.Day && m.BigKills > 0);
+
+                    if ((omenNearby || bigHunt) && prayer.LastSignDay != Clock.Day)
+                    {
+                        prayer.LastSignDay = Clock.Day;
+                        double cred = asker.M(MindTrait.Credulity);
+                        asker.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.08 * (0.4 + cred * 0.8), Simulation.GodAnswers(asker));
+                        asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.06 * (0.4 + cred * 0.8), Simulation.GodReal(asker));
+                        GodEvents.Add(new GodEvent(Clock.Tick, "PrayerSign", $"{asker.Name} saw a sign while their plea for {prayer.Need} was open", prayer.CampX, prayer.CampY));
+                    }
+
+                    bool deathInFamily = band.Band.LastDeathDay == Clock.Day;
+                    bool hardFrost = band.World[(int)band.Band.CampX, (int)band.Band.CampY].Temperature < -5.0 && Clock.Season == Season.Winter;
+
+                    if ((deathInFamily || hardFrost) && prayer.LastRefusalDay != Clock.Day)
+                    {
+                        prayer.LastRefusalDay = Clock.Day;
+                        asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.08, Simulation.GodAnswers(asker));
+                        asker.Expect.Absorb(Simulation.GodKindTopic, -1.0, 0.06, Simulation.GodKind(asker));
+                        GodEvents.Add(new GodEvent(Clock.Tick, "PrayerRefusal", $"{asker.Name} felt refused while their plea for {prayer.Need} was open", prayer.CampX, prayer.CampY));
+                    }
+                }
+
                 if (prayer.Need == PrayerNeed.Hunger)
                 {
                     if (asker.Health <= 0)
@@ -117,9 +169,10 @@ namespace Anthro.Sim
                     }
                     else if (asker.Satiety >= 0.7)
                     {
-                        // surprise: if they were starving and land is bare, high. If ordinary meal, low.
-                        double daysFood = asker.Home?.DaysOfFood ?? 0;
-                        double surprise = daysFood <= 0.05 ? 1.0 : 0.1;
+                        // Continuous surprise: food when hearth was empty and land bare counts fully (1.0); ordinary meal barely counts (0.05).
+                        double foodUnlikely = Math.Max(0.0, 1.0 - (prayer.InitialDaysFood / 2.0));
+                        double landUnlikely = Math.Max(0.0, 1.0 - prayer.InitialPlenty);
+                        double surprise = Math.Min(1.0, 0.05 + 0.95 * foodUnlikely * (0.3 + 0.7 * landUnlikely));
                         toResolve.Add((prayer, true, surprise));
                     }
                 }
@@ -131,7 +184,9 @@ namespace Anthro.Sim
                     }
                     else if (target.Sickness <= 0 && target.Health >= 0.7)
                     {
-                        toResolve.Add((prayer, true, 0.1));
+                        // Continuous surprise: severe sickness breaking is a surprise, mild cough is expected
+                        double surprise = Math.Max(0.05, Math.Min(1.0, prayer.InitialSeverity));
+                        toResolve.Add((prayer, true, surprise));
                     }
                 }
                 else if (prayer.Need == PrayerNeed.Danger)
@@ -142,7 +197,9 @@ namespace Anthro.Sim
                     }
                     else if (asker.Injury <= 0.05)
                     {
-                        toResolve.Add((prayer, true, 0.1));
+                        // Continuous surprise: severe injury healing is a surprise, light scratch is expected
+                        double surprise = Math.Max(0.05, Math.Min(1.0, prayer.InitialSeverity));
+                        toResolve.Add((prayer, true, surprise));
                     }
                 }
                 else if (prayer.Need == PrayerNeed.Grief)

@@ -1,7 +1,9 @@
-import re,statistics as st,sys,glob
+import re,statistics as st,sys,glob,os
 def load(v):
     out=[]
+    pat = re.compile(rf'^{v}_\d+\.txt$')
     for f in sorted(glob.glob(f'{v}_*[0-9].txt')):
+        if not pat.match(os.path.basename(f)): continue
         s=f
         t=open(f,encoding='utf-8',errors='replace').read()
         ys=re.findall(r'\nY\s*(\d+) pop\s+(\d+).*?starv\s+(\d+) viol\s+(\d+) fed ([\d.]+)',t)

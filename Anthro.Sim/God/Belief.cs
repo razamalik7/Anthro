@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Anthro.Sim.People;
 
 namespace Anthro.Sim
@@ -22,7 +23,7 @@ namespace Anthro.Sim
         public static double GodReal(Person p) => p.Expect.Get(GodRealTopic, 0.2);
         public static double GodAnswers(Person p) => p.Expect.Get(GodAnswersTopic, 0.1);
         public static double GodKind(Person p) => p.Expect.Get(GodKindTopic, 0.0);
-        public static double GodOffer(Person p) => p.Expect.Get(GodOfferTopic, 0.1);
+        public static double GodOffer(Person p) => GodAct(p, Act.Offer);
         public static double GodAct(Person p, string act) => p.Expect.Get(GodActTopic(act), 0.0);
         public static double GodAct(Person p, Act act) => p.Expect.Get(GodActTopic(act), 0.0);
         public static bool IsBeliever(Person p) => GodReal(p) > 0.5;
@@ -37,25 +38,39 @@ namespace Anthro.Sim
             double baseReal = Inheritance.Clamp01(rng.Normal(0.2, 0.1));
             double baseAnswers = Inheritance.Clamp01(rng.Normal(0.1, 0.05));
             double baseKind = Math.Max(-1, Math.Min(1, rng.Normal(0.0, 0.1)));
-            double baseOffer = Inheritance.Clamp01(rng.Normal(0.1, 0.05));
 
             foreach (var p in group)
             {
                 p.Expect.Absorb(GodRealTopic, Inheritance.Clamp01(baseReal + rng.Normal(0, 0.05)), 1, 0);
                 p.Expect.Absorb(GodAnswersTopic, Inheritance.Clamp01(baseAnswers + rng.Normal(0, 0.02)), 1, 0);
                 p.Expect.Absorb(GodKindTopic, Math.Max(-1, Math.Min(1, baseKind + rng.Normal(0, 0.05))), 1, 0);
-                p.Expect.Absorb(GodOfferTopic, Inheritance.Clamp01(baseOffer + rng.Normal(0, 0.02)), 1, 0);
             }
         }
 
         /// <summary>
         /// Faith fades without signs: god:real relaxes slowly toward its baseline seed (~0.2).
-        /// Tiny daily adjustment (0.001) in the daily person update.
+        /// Offerings that go unanswered erode slowly, like prayers.
+        /// Tiny daily adjustment in the daily person update.
         /// </summary>
         void FadeBelief(Person p)
         {
             if (Off("god") || Off("belief")) return;
             p.Expect.Absorb(GodRealTopic, 0.2, 0.001, 0.2);
+
+            // Offerings that go unanswered erode slowly, like prayers
+            double offerBelief = GodOffer(p);
+            if (offerBelief > 0)
+            {
+                // Baseline slow decay if unfed by signs
+                double decay = 0.005;
+                // Faster erosion if an offering was made recently and went unanswered
+                if (p.OwnDeeds.Any(d => d.Deed.Act == Act.Offer && Clock.Day - d.Deed.Day >= 1 && Clock.Day - d.Deed.Day <= 14))
+                    decay = 0.02;
+                else if (p.Deeds.Any(d => d.Deed.Act == Act.Offer && Clock.Day - d.Deed.Day >= 1 && Clock.Day - d.Deed.Day <= 14))
+                    decay = 0.01;
+
+                p.Expect.Absorb(GodOfferTopic, 0.0, decay, offerBelief);
+            }
         }
     }
 }

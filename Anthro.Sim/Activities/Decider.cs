@@ -470,22 +470,31 @@ namespace Anthro.Sim.Activities
             }
 
             // Offer to the god: give up food/goods at a sacred spot or hearth
-            // Value = belief * expected favor return; sized by giver's means
-            // Cruel god (god:kind < 0) prompts fear offerings to appease wrath!
+            // Value = belief * Felt(learned return) * scale; sized by giver's means.
+            // Gratitude (kind) and dread (cruel) scale that learned value (higher stakes), never add to it.
+            // With no learned return, nobody offers, whatever the god's temper.
             if (!Simulation.Off("god") && !Simulation.Off("offer") && maturity > 0.6 && Simulation.AtCamp(p) && home.Food.Total >= 2.0 && home.DaysOfFood >= 2.0)
             {
                 double real = Simulation.GodReal(p);
                 if (real > 0.05)
                 {
-                    double kind = Simulation.GodKind(p);
-                    double offerAmount = Math.Min(2.0, home.Food.Total * 0.15);
-                    double fearMotive = kind < -0.2 ? Math.Abs(kind) * p.W(Drive.Safety) * 2.5 : 0.0;
-                    double devotionMotive = kind > 0.2 ? kind * (0.5 + p.M(MindTrait.Warmth)) * 2.0 : 0.0;
-                    double offerScore = real * (Simulation.GodOffer(p) + fearMotive + devotionMotive) * (home.DaysOfFood > 4.0 ? 1.0 : 0.5);
-
-                    if (offerScore > 0.1)
+                    double learned = Simulation.GodOffer(p);
+                    if (learned > 0.0)
                     {
-                        options.Add(new Option(Verb.Offer, offerScore, () => new Offer(p, offerAmount)));
+                        double feltReturn = Simulation.Felt(learned);
+                        double kind = Simulation.GodKind(p);
+                        double scale = 1.0;
+                        if (kind > 0)
+                            scale += kind * (0.5 + p.M(MindTrait.Warmth));
+                        else if (kind < 0)
+                            scale += Math.Abs(kind) * p.W(Drive.Safety);
+
+                        double offerScore = real * feltReturn * scale * (home.DaysOfFood > 4.0 ? 1.0 : 0.5);
+                        if (offerScore > 0.05)
+                        {
+                            double offerAmount = Math.Min(2.0, home.Food.Total * 0.15);
+                            options.Add(new Option(Verb.Offer, offerScore, () => new Offer(p, offerAmount)));
+                        }
                     }
                 }
             }

@@ -290,11 +290,12 @@ namespace Anthro.Sim.Activities
 
             sim.Region.Favor = Math.Min(sim.Region.FavorCap, sim.Region.Favor + gain);
             sim.ThisYear.FavorGain += gain;
+            sim.ThisYear.FoodOffered += actual;
 
             sim.Chronicle.Write(sim.Clock, Anthro.Sim.Core.Importance.Detail, $"{P.Name} offered {actual:F1} rations to the god.");
             sim.Region.GodEvents.Add(new GodEvent(sim.Clock.Tick, "Offer", $"{P.Name} made an offering of {actual:F1} food (+{gain:F1} favor)", (int)sim.Band.CampX, (int)sim.Band.CampY));
             
-            sim.HappenHere(new People.Deed { Day = sim.Clock.Day, Actor = P, Act = People.Act.Offer });
+            sim.HappenHere(new People.Deed { Day = sim.Clock.Day, Actor = P, Act = People.Act.Offer, Amount = actual, Hearth = home });
         }
     }
 }

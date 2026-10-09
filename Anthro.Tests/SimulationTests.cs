@@ -480,15 +480,23 @@ public class SimulationTests
         Assert.NotNull(home);
         home.Food.AddMeat(10.0);
 
-        // Believes god is real and cruel
+        // Believes god is real and cruel, and has learned offerings work
         adult.Expect.Absorb(Simulation.GodRealTopic, 0.8, 1.0, 0.8);
         adult.Expect.Absorb(Simulation.GodKindTopic, -0.8, 1.0, -0.8);
+        adult.Expect.Absorb(Simulation.GodOfferTopic, 0.5, 1.0, 0.5);
 
         // Test Decider options: Verb.Offer should be available with fear motive
         var options = Anthro.Sim.Activities.Decider.Options(sim, adult);
         var offerOpt = options.FirstOrDefault(o => o.Verb == Anthro.Sim.Activities.Verb.Offer);
         Assert.Equal(Anthro.Sim.Activities.Verb.Offer, offerOpt.Verb);
         Assert.True(offerOpt.Score > 0.1, $"Offer score should be boosted by fear: {offerOpt.Score}");
+
+        // Without learned return, nobody offers even under a cruel god
+        var other = sim.Band.Members.First(m => sim.Grown(m) && m != adult);
+        other.Expect.Absorb(Simulation.GodRealTopic, 0.8, 1.0, 0.8);
+        other.Expect.Absorb(Simulation.GodKindTopic, -0.8, 1.0, -0.8);
+        var otherOptions = Anthro.Sim.Activities.Decider.Options(sim, other);
+        Assert.DoesNotContain(otherOptions, o => o.Verb == Anthro.Sim.Activities.Verb.Offer);
 
         // Now test performing an offer
         region.Favor = 10.0;
@@ -700,6 +708,37 @@ public class SimulationTests
         region.ApplyGodCommands();
         sim.ConsiderLeaving(adult, null, 0.0);
         Assert.Contains(partner, adult.Spouses); // Still stays because 0.3 isn't enough to overcome deep bond!
+    }
+
+    [Fact]
+    public void SignsWhilePrayerIsOpenAffectBelief()
+    {
+        var region = Region.Create(7);
+        var sim = region.Founders;
+        var asker = sim.Band.Members[0];
+
+        // Register prayer
+        sim.RegisterPrayer(asker, PrayerNeed.Hunger);
+        var prayer = region.ActivePrayers.First(p => p.Asker == asker);
+
+        double answersBefore = Simulation.GodAnswers(asker);
+        double realBefore = Simulation.GodReal(asker);
+
+        // Good omen nearby while open
+        region.CastOmen((int)sim.Band.CampX, (int)sim.Band.CampY, "A protective luminescence warms the camp", isGood: true);
+        region.ApplyGodCommands();
+
+        Assert.True(Simulation.GodAnswers(asker) > answersBefore, "Expected god:answers to rise on sign while plea is open");
+        Assert.True(Simulation.GodReal(asker) > realBefore, "Expected god:real to rise on sign while plea is open");
+
+        // Refusal event: bad striking event or refusal while open
+        double answersAfterSign = Simulation.GodAnswers(asker);
+        double kindBefore = Simulation.GodKind(asker);
+
+        region.InterpretStrikingEvent((int)sim.Band.CampX, (int)sim.Band.CampY, isGood: false, "Omen");
+
+        Assert.True(Simulation.GodAnswers(asker) < answersAfterSign, "Expected god:answers to fall on refusal while plea is open");
+        Assert.True(Simulation.GodKind(asker) < kindBefore, "Expected god:kind to fall on refusal while plea is open");
     }
 }
 
