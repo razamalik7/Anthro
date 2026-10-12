@@ -30,6 +30,7 @@ namespace Anthro.Sim
     {
         string PowerName { get; }
         double Cost { get; }
+        bool CanExecute(Region region) => true;
         void Execute(Region region);
     }
 
@@ -44,6 +45,9 @@ namespace Anthro.Sim
         public bool GodFaded { get; set; }
         public int IgnoredEmbers { get; set; }
         public GodPolicy Policy { get; set; } = BotGod.PolicyFromEnv();
+
+        public long LastHealDay = -99999;
+        public long LastLightningDay = -99999;
 
         public bool SpendFavor(double amount)
         {
@@ -69,7 +73,7 @@ namespace Anthro.Sim
             _pendingGodCommands.Enqueue(cmd);
         }
 
-        // Power command stubs (T2: API and deterministic queue; implementation in T4/T8)
+        // Power command stubs (T2: API and deterministic queue; implementation in T4/T8/T9C)
 
         public void CastOmen(int x, int y, string description = "A sign in the sky", bool isGood = false) =>
             EnqueueGodCommand(new OmenCommand(x, y, description, isGood));
@@ -86,6 +90,26 @@ namespace Anthro.Sim
         public void CastForkNudge(Person person, string choice) =>
             EnqueueGodCommand(new ForkNudgeCommand(person, choice));
 
+        public bool CanCastHeal(Person person) =>
+            person != null && person.Alive &&
+            !Simulation.Off("god") && !Simulation.Off("power") && !Simulation.Off("heal") &&
+            Reputation >= 4.0 &&
+            People.Count(Simulation.IsBeliever) >= 5 &&
+            (Clock.Day - LastHealDay >= 3600);
+
+        public bool CanCastLightning(Person person) =>
+            person != null && person.Alive &&
+            !Simulation.Off("god") && !Simulation.Off("power") && !Simulation.Off("lightning") &&
+            Reputation <= -4.0 &&
+            People.Count(Simulation.IsBeliever) >= 5 &&
+            (Clock.Day - LastLightningDay >= 3600);
+
+        public void CastHeal(Person person) =>
+            EnqueueGodCommand(new HealCommand(person));
+
+        public void CastLightning(Person person) =>
+            EnqueueGodCommand(new LightningCommand(person));
+
         /// <summary>Applied at the start of an hour step before any band actions.</summary>
         public void ApplyGodCommands()
         {
@@ -98,9 +122,11 @@ namespace Anthro.Sim
             while (_pendingGodCommands.Count > 0)
             {
                 var cmd = _pendingGodCommands.Dequeue();
+                if (!cmd.CanExecute(this)) continue;
+
                 double cost = cmd.Cost;
-                bool isBlessing = cmd.PowerName == "BountyPlant" || cmd.PowerName == "BountyAnimal" || cmd.PowerName == "BlessedBirth";
-                bool isWrath = cmd.PowerName == "Omen";
+                bool isBlessing = cmd.PowerName == "BountyPlant" || cmd.PowerName == "BountyAnimal" || cmd.PowerName == "BlessedBirth" || cmd.PowerName == "Heal";
+                bool isWrath = cmd.PowerName == "Omen" || cmd.PowerName == "Lightning";
                 if (isBlessing && Reputation > 0)
                     cost *= Math.Max(0.7, 1.0 - Reputation * 0.03);
                 else if (isWrath && Reputation < 0)
@@ -296,6 +322,59 @@ namespace Anthro.Sim
                 int bx = band != null ? (int)band.Band.CampX : 0;
                 int by = band != null ? (int)band.Band.CampY : 0;
                 region.GodEvents.Add(new GodEvent(region.Clock.Tick, "ForkNudge", $"{_person.Name} nudged: {_choice}", bx, by));
+            }
+        }
+
+        sealed class HealCommand : IGodCommand
+        {
+            readonly Person _target;
+            public HealCommand(Person target) { _target = target; }
+            public string PowerName => "Heal";
+            public double Cost => 50.0;
+            public bool CanExecute(Region region) => region.CanCastHeal(_target);
+            public void Execute(Region region)
+            {
+                if (!region.CanCastHeal(_target)) return;
+                region.LastHealDay = region.Clock.Day;
+                region.Reputation = Math.Min(10.0, region.Reputation + 1.0);
+                _target.Illness = null;
+                _target.Injury = 0.0;
+                _target.Health = Math.Max(_target.Health, 0.85);
+
+                var band = region.BandOf(_target);
+                int bx = band != null ? (int)band.Band.CampX : (int)_target.X;
+                int by = band != null ? (int)band.Band.CampY : (int)_target.Y;
+
+                region.Chronicle.Write(region.Clock, Importance.Major, $"{_target.Name}'s fever broke and their wounds closed.");
+                region.GodEvents.Add(new GodEvent(region.Clock.Tick, "Heal", $"Miraculous healing of {_target.Name}", bx, by));
+                region.InterpretStrikingEvent(bx, by, isGood: true, "Heal", _target);
+            }
+        }
+
+        sealed class LightningCommand : IGodCommand
+        {
+            readonly Person _target;
+            public LightningCommand(Person target) { _target = target; }
+            public string PowerName => "Lightning";
+            public double Cost => 50.0;
+            public bool CanExecute(Region region) => region.CanCastLightning(_target);
+            public void Execute(Region region)
+            {
+                if (!region.CanCastLightning(_target)) return;
+                region.LastLightningDay = region.Clock.Day;
+                region.Reputation = Math.Max(-10.0, region.Reputation - 1.0);
+
+                var band = region.BandOf(_target);
+                int bx = band != null ? (int)band.Band.CampX : (int)_target.X;
+                int by = band != null ? (int)band.Band.CampY : (int)_target.Y;
+
+                region.Chronicle.Write(region.Clock, Importance.Major, $"A bolt of lightning struck {_target.Name} dead on the open ground.");
+                region.GodEvents.Add(new GodEvent(region.Clock.Tick, "Lightning", $"Lightning struck {_target.Name}", bx, by));
+                region.InterpretStrikingEvent(bx, by, isGood: false, "Lightning", _target);
+                if (band != null && _target.Alive)
+                {
+                    band.Kill(_target, "killed by lightning");
+                }
             }
         }
     }

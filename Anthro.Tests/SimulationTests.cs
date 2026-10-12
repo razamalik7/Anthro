@@ -740,6 +740,139 @@ public class SimulationTests
         Assert.True(Simulation.GodAnswers(asker) < answersAfterSign, "Expected god:answers to fall on refusal while plea is open");
         Assert.True(Simulation.GodKind(asker) < kindBefore, "Expected god:kind to fall on refusal while plea is open");
     }
+
+    [Fact]
+    public void HealUnlockThresholdsAndCost()
+    {
+        var region = Region.Create(7);
+        var sim = region.Founders;
+        var sick = sim.Band.Members[0];
+        sick.Illness = Disease.Fever;
+        sick.Health = 0.3;
+
+        // With default reputation (0.0), Heal is locked
+        Assert.False(region.CanCastHeal(sick));
+
+        // When reputation >= 4.0 and enough believers (>= 5), Heal unlocks
+        region.Reputation = 5.0;
+        foreach (var m in sim.Band.Members.Take(6))
+            m.Expect.Absorb(Simulation.GodRealTopic, 1.0, 1.0, 0.0);
+
+        Assert.True(region.CanCastHeal(sick));
+
+        double favorBefore = region.Favor;
+        region.CastHeal(sick);
+        region.ApplyGodCommands();
+
+        Assert.True(region.Favor < favorBefore, "Expected favor to be spent on Heal");
+        Assert.Null(sick.Illness);
+        Assert.True(sick.Health >= 0.85);
+    }
+
+    [Fact]
+    public void LightningUnlockThresholdsAndCost()
+    {
+        var region = Region.Create(7);
+        var sim = region.Founders;
+        var target = sim.Band.Members[0];
+
+        // With default reputation (0.0), Lightning is locked
+        Assert.False(region.CanCastLightning(target));
+
+        // When reputation <= -4.0 and enough believers (>= 5), Lightning unlocks
+        region.Reputation = -5.0;
+        foreach (var m in sim.Band.Members.Take(6))
+            m.Expect.Absorb(Simulation.GodRealTopic, 1.0, 1.0, 0.0);
+
+        Assert.True(region.CanCastLightning(target));
+
+        double favorBefore = region.Favor;
+        region.CastLightning(target);
+        region.ApplyGodCommands();
+
+        Assert.True(region.Favor < favorBefore, "Expected favor to be spent on Lightning");
+        Assert.False(target.Alive, "Expected target to be struck dead");
+        Assert.Equal("killed by lightning", target.DeathCause);
+    }
+
+    [Fact]
+    public void LightningOnWrongdoerPunishesTheirAct()
+    {
+        var region = Region.Create(7);
+        var sim = region.Founders;
+        var wrongdoer = sim.Band.Members[0];
+        var witness = sim.Band.Members[1];
+
+        witness.Expect.Absorb(Simulation.GodRealTopic, 0.5, 1.0, 0.0);
+        double takeBefore = witness.Expect.Get(Simulation.GodActTopic(Act.Take), 0.0);
+
+        // Witness remembers wrongdoer stealing food
+        witness.Deeds.Add(new Remembered(new Deed { Actor = wrongdoer, Act = Act.Take, Day = sim.Clock.Day, Amount = 5.0 }, true));
+
+        region.Reputation = -5.0;
+        foreach (var m in sim.Band.Members.Take(6))
+            m.Expect.Absorb(Simulation.GodRealTopic, 1.0, 1.0, 0.0);
+
+        region.CastLightning(wrongdoer);
+        region.ApplyGodCommands();
+
+        double takeAfter = witness.Expect.Get(Simulation.GodActTopic(Act.Take), 0.0);
+        Assert.True(takeAfter < takeBefore, "Expected god:take to decrease after lightning struck thief");
+    }
+
+    [Fact]
+    public void LightningOnInnocentReducesBeliefAndKindness()
+    {
+        var region = Region.Create(7);
+        var sim = region.Founders;
+        var innocent = sim.Band.Members[0];
+        var witness = sim.Band.Members[1];
+
+        region.Reputation = -5.0;
+        foreach (var m in sim.Band.Members.Skip(2).Take(6))
+            m.Expect.Absorb(Simulation.GodRealTopic, 1.0, 1.0, 0.0);
+
+        witness.Expect.Absorb(Simulation.GodRealTopic, 0.6, 1.0, 0.0);
+        witness.Expect.Absorb(Simulation.GodKindTopic, 0.3, 1.0, 0.0);
+        witness.AddAffinity(innocent, 0.5);
+
+        double realBefore = Simulation.GodReal(witness);
+        double kindBefore = Simulation.GodKind(witness);
+
+        region.CastLightning(innocent);
+        region.ApplyGodCommands();
+
+        double realAfter = Simulation.GodReal(witness);
+        double kindAfter = Simulation.GodKind(witness);
+
+        Assert.True(realAfter < realBefore, "Expected god:real to fall when innocent is struck");
+        Assert.True(kindAfter < kindBefore, "Expected god:kind to drop sharply when innocent is struck");
+    }
+
+    [Fact]
+    public void HealingKnownKillerIncreasesGodAttack()
+    {
+        var region = Region.Create(7);
+        var sim = region.Founders;
+        var killer = sim.Band.Members[0];
+        var witness = sim.Band.Members[1];
+
+        witness.Expect.Absorb(Simulation.GodRealTopic, 0.5, 1.0, 0.0);
+        double attackBefore = witness.Expect.Get(Simulation.GodActTopic(Act.Attack), 0.0);
+
+        // Witness remembers killer attacking someone
+        witness.Deeds.Add(new Remembered(new Deed { Actor = killer, Act = Act.Attack, Day = sim.Clock.Day, Amount = 1.0 }, true));
+
+        region.Reputation = 5.0;
+        foreach (var m in sim.Band.Members.Take(6))
+            m.Expect.Absorb(Simulation.GodRealTopic, 1.0, 1.0, 0.0);
+
+        region.CastHeal(killer);
+        region.ApplyGodCommands();
+
+        double attackAfter = witness.Expect.Get(Simulation.GodActTopic(Act.Attack), 0.0);
+        Assert.True(attackAfter > attackBefore, "Expected god:attack to rise when known killer is healed");
+    }
 }
 
 

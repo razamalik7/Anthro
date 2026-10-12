@@ -561,6 +561,7 @@ namespace Anthro.Sim
             var rel = RelationTo(taker, hearth);
             var deed = new Deed { Day = Clock.Day, Actor = taker, Act = Act.Take, Target = owner, Hearth = hearth, Amount = took };
             var seen = Happen(deed);
+            if (seen.Count > 0) LastWitnessedTheftTick = Clock.Tick;
             deed.Context = Lesson(Act.Take, rel, seen.Count > 0);
             deed.Payoff = took;
             Learn(taker, deed.Context, took, CulturalDefault(Act.Take, rel, seen.Count > 0));

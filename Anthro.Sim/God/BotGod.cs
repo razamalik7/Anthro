@@ -10,16 +10,18 @@ namespace Anthro.Sim
         None,
         Kind,
         Cruel,
-        Random
+        Random,
+        Skilful
     }
 
     /// <summary>
-    /// Autonomous bot god policies for headless simulation, testing, and comparative analysis (T7).
+    /// Autonomous bot god policies for headless simulation, testing, and comparative analysis (T7, T9C).
     /// Policies:
     /// - None: No divine intervention; baseline prayer fading.
-    /// - Kind: Answers prayers with bounties/relief, eases harsh winters, fosters trust and survival.
-    /// - Cruel: Ignores pleas for relief, displays terrifying omens and harshens winters, breeds fear and fear offerings.
+    /// - Kind: Answers prayers with bounties/relief, eases harsh winters, fosters trust, heals when unlocked.
+    /// - Cruel: Ignores pleas for relief, displays terrifying omens and harshens winters, strikes lightning when unlocked.
     /// - Random: Capricious, mixed benevolence and wrath.
+    /// - Skilful: Intervenes at the right moments (harsh winter mitigation, starving camp relief, theft omens, sparing blessings, heal).
     /// </summary>
     public static class BotGod
     {
@@ -34,6 +36,7 @@ namespace Anthro.Sim
             "kind" => GodPolicy.Kind,
             "cruel" => GodPolicy.Cruel,
             "random" => GodPolicy.Random,
+            "skilful" or "skillful" => GodPolicy.Skilful,
             _ => GodPolicy.None
         };
 
@@ -53,6 +56,9 @@ namespace Anthro.Sim
                     break;
                 case GodPolicy.Random:
                     StepRandom(region);
+                    break;
+                case GodPolicy.Skilful:
+                    StepSkilful(region);
                     break;
             }
         }
@@ -123,6 +129,13 @@ namespace Anthro.Sim
                     region.CastWeather(Season.Winter, -0.4);
                 }
             }
+
+            // Heal severe sickness or wound if unlocked (C3)
+            if (region.Favor >= 50)
+            {
+                var sick = region.People.FirstOrDefault(p => p.Alive && (p.Illness != null || p.Injury > 0.4) && region.CanCastHeal(p));
+                if (sick != null) region.CastHeal(sick);
+            }
         }
 
         static void StepCruel(Region region)
@@ -157,6 +170,13 @@ namespace Anthro.Sim
                     region.CastWeather(Season.Winter, +0.4);
                 }
             }
+
+            // Strike lightning when unlocked (C3)
+            if (region.Favor >= 50)
+            {
+                var victim = region.People.FirstOrDefault(p => p.Alive && region.CanCastLightning(p));
+                if (victim != null) region.CastLightning(victim);
+            }
         }
 
         static void StepRandom(Region region)
@@ -176,6 +196,103 @@ namespace Anthro.Sim
                     // Cruel
                     if (region.Favor >= 5 && region.GodRng.Chance(0.5))
                         region.CastOmen(unhelped.CampX, unhelped.CampY, "A strange, eerie glow crosses the heavens");
+                }
+            }
+        }
+
+        static void StepSkilful(Region region)
+        {
+            if (Simulation.Off("skilful")) return;
+
+            // 1. Weather before a hard winter:
+            // In late autumn / very early winter, if winter severity is high, soften it.
+            if ((region.Clock.Season == Season.Autumn && region.Clock.DayOfSeason >= 70 && region.Clock.Hour == 12) ||
+                (region.Clock.Season == Season.Winter && region.Clock.DayOfSeason <= 5 && region.Clock.Hour == 12))
+            {
+                if (region.World.Climate.WinterSeverity > 0.5 && region.Favor >= 60)
+                {
+                    region.CastWeather(Season.Winter, -0.4);
+                }
+            }
+
+            // 2. An omen right after a witnessed theft:
+            // Discourages theft and restores moral order with a stern sign.
+            foreach (var b in region.Bands)
+            {
+                if (region.Clock.Tick - b.LastWitnessedTheftTick <= 12)
+                {
+                    if (region.Favor >= 5)
+                    {
+                        region.CastOmen((int)b.Band.CampX, (int)b.Band.CampY, "A low rumble of celestial anger shook the stolen hearth", isGood: false);
+                    }
+                    b.LastWitnessedTheftTick = -99999;
+                }
+            }
+
+            // 3. Food when a camp is genuinely starving:
+            var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted);
+            if (unhelped != null)
+            {
+                if (unhelped.Need == PrayerNeed.Hunger)
+                {
+                    bool campStarving = unhelped.Asker != null && (unhelped.Asker.Satiety < 0.25 || (unhelped.Asker.Home?.Food.Total ?? 0) < 1.0);
+                    if (campStarving)
+                    {
+                        bool isWinter = region.Clock.Season == Season.Winter;
+                        if (isWinter && region.Favor >= 30)
+                        {
+                            region.CastBounty(unhelped.CampX, unhelped.CampY, animals: true);
+                            unhelped.PowerCasted = true;
+                        }
+                        else if (region.Favor >= 20)
+                        {
+                            region.CastBounty(unhelped.CampX, unhelped.CampY, animals: false);
+                            unhelped.PowerCasted = true;
+                        }
+                    }
+                }
+                else if (unhelped.Need == PrayerNeed.Sickness)
+                {
+                    if (region.CanCastHeal(unhelped.Asker) && region.Favor >= 50)
+                    {
+                        region.CastHeal(unhelped.Asker);
+                        unhelped.PowerCasted = true;
+                    }
+                    else if (region.Favor >= 5)
+                    {
+                        region.CastOmen(unhelped.CampX, unhelped.CampY, "A gentle sign touches the sick", isGood: true);
+                        unhelped.PowerCasted = true;
+                    }
+                }
+            }
+
+            // Also check camps without open prayers if in acute famine
+            if (region.Favor >= 25 && region.Clock.Hour == 12)
+            {
+                var acuteCamp = region.Bands.FirstOrDefault(b => b.Band.FoodTotal < b.Band.Members.Count * 0.5 && b.Band.Members.Any(m => m.Reserve < 0.25));
+                if (acuteCamp != null)
+                {
+                    region.CastBounty((int)acuteCamp.Band.CampX, (int)acuteCamp.Band.CampY, animals: region.Clock.Season == Season.Winter);
+                }
+            }
+
+            // 4. Heal directly if someone is dying of sickness and Heal is unlocked
+            if (region.Favor >= 50)
+            {
+                var dying = region.People.FirstOrDefault(p => p.Alive && p.Illness != null && p.Health < 0.35 && region.CanCastHeal(p));
+                if (dying != null)
+                {
+                    region.CastHeal(dying);
+                }
+            }
+
+            // 5. Blessings sparingly (once every ~12 years = 4320 days)
+            if (region.Favor >= 45 && region.Clock.Day % 4320 == 0 && region.Clock.Hour == 12)
+            {
+                var mother = region.People.FirstOrDefault(p => p.Alive && p.Sex == Sex.Female && p.Spouses.Count > 0 && !p.BlessedNextBirth && p.AgeYears(region.Clock) >= 18 && p.AgeYears(region.Clock) <= 32);
+                if (mother != null)
+                {
+                    region.CastBlessedBirth(mother);
                 }
             }
         }

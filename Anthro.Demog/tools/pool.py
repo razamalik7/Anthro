@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Continuous Worker Pool for Anthro Simulations.
+Continuous Worker Pool for Anthro Simulations (Batch C).
 Keeps all available CPU cores 100% saturated without waiting for batch tails.
 """
 import os
@@ -10,32 +10,32 @@ import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 DOTNET_EXE = r"C:\Program Files\dotnet\dotnet.exe"
-ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 RUNS_DIR = os.path.join(ROOT_DIR, "runs")
 DEMOG_DLL = os.path.join(RUNS_DIR, "bin", "Demog.dll")
 
 all_batches = [
-    # B0a & B0b baselines
+    # Baselines
     ("godoff", 41, 60, ["ANTHRO_OFF=god"]),
     ("godoff2", 61, 80, ["ANTHRO_OFF=god"]),
     ("idle", 41, 60, ["ANTHRO_OFF="]),
     ("idle2", 61, 80, ["ANTHRO_OFF="]),
-    ("self_off", 41, 60, ["ANTHRO_OFF=god,selfmemory"]),
-    ("self_off2", 61, 80, ["ANTHRO_OFF=god,selfmemory"]),
     
-    # B3 Kind bot and ablations
+    # The Bots (C1 & C2)
     ("kind", 41, 60, ["ANTHRO_GOD=kind", "ANTHRO_OFF="]),
     ("kind2", 61, 80, ["ANTHRO_GOD=kind", "ANTHRO_OFF="]),
-    ("kind_nooffer", 41, 60, ["ANTHRO_GOD=kind", "ANTHRO_OFF=offer"]),
-    ("kind_nooffer2", 61, 80, ["ANTHRO_GOD=kind", "ANTHRO_OFF=offer"]),
-    ("kind_norite", 41, 60, ["ANTHRO_GOD=kind", "ANTHRO_OFF=rite"]),
-    ("kind_norite2", 61, 80, ["ANTHRO_GOD=kind", "ANTHRO_OFF=rite"]),
-    ("kind_nopray", 41, 60, ["ANTHRO_GOD=kind", "ANTHRO_OFF=pray"]),
-    ("kind_nopray2", 61, 80, ["ANTHRO_GOD=kind", "ANTHRO_OFF=pray"]),
-    ("kind_bountyonly", 41, 60, ["ANTHRO_GOD=kind", "ANTHRO_OFF=weather,omen,bless,nudge"]),
-    ("kind_bountyonly2", 61, 80, ["ANTHRO_GOD=kind", "ANTHRO_OFF=weather,omen,bless,nudge"]),
-    ("kind_weatheronly", 41, 60, ["ANTHRO_GOD=kind", "ANTHRO_OFF=bounty,omen,bless,nudge"]),
-    ("kind_weatheronly2", 61, 80, ["ANTHRO_GOD=kind", "ANTHRO_OFF=bounty,omen,bless,nudge"]),
+    ("cruel", 41, 60, ["ANTHRO_GOD=cruel", "ANTHRO_OFF="]),
+    ("cruel2", 61, 80, ["ANTHRO_GOD=cruel", "ANTHRO_OFF="]),
+    ("skilful", 41, 60, ["ANTHRO_GOD=skilful", "ANTHRO_OFF="]),
+    ("skilful2", 61, 80, ["ANTHRO_GOD=skilful", "ANTHRO_OFF="]),
+    
+    # Direct acts ablations (C3)
+    ("kind_noheal", 41, 60, ["ANTHRO_GOD=kind", "ANTHRO_OFF=heal"]),
+    ("kind_noheal2", 61, 80, ["ANTHRO_GOD=kind", "ANTHRO_OFF=heal"]),
+    ("cruel_nolightning", 41, 60, ["ANTHRO_GOD=cruel", "ANTHRO_OFF=lightning"]),
+    ("cruel_nolightning2", 61, 80, ["ANTHRO_GOD=cruel", "ANTHRO_OFF=lightning"]),
+    ("skilful_noheal", 41, 60, ["ANTHRO_GOD=skilful", "ANTHRO_OFF=heal"]),
+    ("skilful_noheal2", 61, 80, ["ANTHRO_GOD=skilful", "ANTHRO_OFF=heal"]),
 ]
 
 def run_world(args):
@@ -63,7 +63,6 @@ def is_already_done(prefix, seed):
     out_file = os.path.join(RUNS_DIR, f"{prefix}_{seed}.txt")
     if not os.path.exists(out_file):
         return False
-    # Check if reaches Y 50
     try:
         with open(out_file, "r", encoding="utf-8", errors="replace") as f:
             content = f.read()
@@ -74,17 +73,23 @@ def is_already_done(prefix, seed):
 def main():
     os.makedirs(RUNS_DIR, exist_ok=True)
     
-    # Build list of pending runs across all batches
+    force = "--force" in sys.argv
+    args_prefixes = [a for a in sys.argv[1:] if not a.startswith("--")]
+    
+    batches_to_run = all_batches
+    if args_prefixes:
+        batches_to_run = [b for b in all_batches if b[0] in args_prefixes]
+
     pending_tasks = []
-    for prefix, s_start, s_end, extra in all_batches:
+    for prefix, s_start, s_end, extra in batches_to_run:
         for seed in range(s_start, s_end + 1):
-            if not is_already_done(prefix, seed):
+            if force or not is_already_done(prefix, seed):
                 pending_tasks.append((seed, prefix, 50, 2, extra))
                 
     total_tasks = len(pending_tasks)
-    print(f"Total tasks pending: {total_tasks} across all batches.")
+    print(f"Total tasks pending: {total_tasks} across {len(batches_to_run)} batches.")
     if total_tasks == 0:
-        print("All batches already complete!")
+        print("All selected batches already complete!")
         return
 
     # Use 21 workers (leaving 3 cores for OS / user / responsiveness on a 24-core CPU)
