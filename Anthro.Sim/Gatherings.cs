@@ -61,6 +61,7 @@ namespace Anthro.Sim
                 if (believers.Count > 0)
                 {
                     double riteFavor = believers.Sum(m => GodReal(m) * 2.5);
+                    Region.FavorEarnedRite += riteFavor;
                     Region.Favor = Math.Min(Region.FavorCap, Region.Favor + riteFavor);
                     ThisYear.FavorGain += riteFavor;
                     foreach (var m in believers)

@@ -173,3 +173,14 @@ None. All items 1–5 from the review and all tasks C1, C2, and C3 were implemen
    Casting an omen immediately after a seen theft proves remarkably effective at establishing an emergent moral taboo: `god:take` drops to negative (**-0.08**), reducing gang raids to 52.8 (vs 657.7 under kind) while preserving high group health.
 3. **Favor Economy for Wrathful Gods (Owner Decision Needed):**
    A cruel god that never answers prayers cannot earn favor through offerings because unrequited offerings decay (`FadeBelief`) and bad signs teach people that the god dislikes offerings (`god:offer` $\to -1.0$). Consequently, once a cruel god spends its starting pool (50.0), it cannot sustain expensive reputation powers like Lightning (50.0) without an independent fear-offering mechanism or sacrifices. How a cruel god earns ongoing favor from fear remains an open design question.
+
+---
+
+## Correction (T10)
+Following review `docs/reports/REVIEW-T9C.md`, the claim that C2 (the skilful bot) was a PASS was overstated. Specifically:
+- **Population is lower on both sets:** Total population was reduced by −11% on Set 41–60 (1,184 vs 1,327) and by −13% on Set 61–80 (1,096 vs 1,267). Describing this as "without ballooning population" obscured an actual drop.
+- **Gang thefts rose 3× on set 61–80:** While gang thefts were lower on Set 41–60 (52.8 vs 75.2), they surged more than 3× on Set 61–80 (223.3 vs 66.8).
+- **Starvation:** Starvation was cut by −13.2% on Set 41–60 (94.6 vs 109.0), but on Set 61–80 the reduction was only −1.5% (101.7 vs 103.3) — effectively only one set showed an effect.
+- **Extinction safety:** 0/40 worlds dipping below 15 vs 1/40 with no god is a single-world difference and does not constitute statistical evidence.
+The skilful bot does not yet clearly improve the odds.
+

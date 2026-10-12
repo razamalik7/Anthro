@@ -305,9 +305,17 @@ namespace Anthro.Sim
         {
             if (Off("god") || Off("pray")) return;
             Region.AddPrayer(p, need, (int)Band.CampX, (int)Band.CampY, target);
-            Region.Favor = Math.Min(Region.FavorCap, Region.Favor + 1.0 * GodReal(p));
+            double gain = 1.0 * GodReal(p);
+            Region.FavorEarnedPrayer += gain;
+            Region.Favor = Math.Min(Region.FavorCap, Region.Favor + gain);
             ThisYear.PrayersAsked++;
-            ThisYear.FavorGain += 1.0 * GodReal(p);
+            ThisYear.FavorGain += gain;
+
+            if (!Off("relief") && p.Dread > 0.05)
+            {
+                p.AppeasementAct = "pray";
+                p.AppeasementDread = p.Dread;
+            }
         }
     }
 }

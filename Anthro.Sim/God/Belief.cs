@@ -52,24 +52,64 @@ namespace Anthro.Sim
         /// Offerings that go unanswered erode slowly, like prayers.
         /// Tiny daily adjustment in the daily person update.
         /// </summary>
-        void FadeBelief(Person p)
+        public void FadeBelief(Person p)
         {
             if (Off("god") || Off("belief")) return;
             p.Expect.Absorb(GodRealTopic, 0.2, 0.001, 0.2);
 
-            // Offerings that go unanswered erode slowly, like prayers
+            // Offerings that go unanswered erode slowly, like prayers (T10 A3: no 14-day window)
             double offerBelief = GodOffer(p);
             if (offerBelief > 0)
             {
                 // Baseline slow decay if unfed by signs
                 double decay = 0.005;
-                // Faster erosion if an offering was made recently and went unanswered
-                if (p.OwnDeeds.Any(d => d.Deed.Act == Act.Offer && Clock.Day - d.Deed.Day >= 1 && Clock.Day - d.Deed.Day <= 14))
+                // Faster erosion if an offering was made and went unanswered (no sign has arrived since)
+                if (p.OwnDeeds.Any(d => d.Deed.Act == Act.Offer && d.Deed.Day > p.LastGodSignDay && Clock.Day > d.Deed.Day))
                     decay = 0.02;
-                else if (p.Deeds.Any(d => d.Deed.Act == Act.Offer && Clock.Day - d.Deed.Day >= 1 && Clock.Day - d.Deed.Day <= 14))
+                else if (p.Deeds.Any(d => d.Deed.Act == Act.Offer && d.Deed.Day > p.LastGodSignDay && Clock.Day > d.Deed.Day))
                     decay = 0.01;
 
                 p.Expect.Absorb(GodOfferTopic, 0.0, decay, offerBelief);
+            }
+
+            // Learning from relief (T10 A2): dread fades continuously; easing dread credits appeasement
+            if (!Off("relief") && p.Dread > 0)
+            {
+                double prevDread = p.Dread;
+                double dreadDecay = (p.Health >= 0.7 && p.Satiety >= 0.5) ? 0.05 : 0.02;
+                p.Dread = Math.Max(0.0, p.Dread - dreadDecay);
+                double drop = prevDread - p.Dread;
+
+                if (drop > 0 && !string.IsNullOrEmpty(p.AppeasementAct))
+                {
+                    double cred = p.M(MindTrait.Credulity);
+                    double real = GodReal(p);
+                    double reliefWeight = 0.20 * (0.4 + cred * 0.8) * Math.Max(0.2, real) * drop;
+
+                    if (p.AppeasementAct == "offer")
+                    {
+                        p.Expect.Absorb(GodOfferTopic, 1.0, reliefWeight, p.Expect.Get(GodOfferTopic, 0.0));
+                        string actTopic = GodActTopic(Act.Offer);
+                        p.Expect.Absorb(actTopic, 1.0, reliefWeight, p.Expect.Get(actTopic, 0.0));
+                    }
+                    else if (p.AppeasementAct == "pray")
+                    {
+                        p.Expect.Absorb(GodAnswersTopic, 1.0, reliefWeight, GodAnswers(p));
+                    }
+                    else
+                    {
+                        string topic = $"god:{p.AppeasementAct.ToLowerInvariant()}";
+                        p.Expect.Absorb(topic, 1.0, reliefWeight, p.Expect.Get(topic, 0.0));
+                    }
+                }
+
+                if (p.Dread <= 0.01)
+                {
+                    p.Dread = 0.0;
+                    p.DreadPeak = 0.0;
+                    p.AppeasementAct = null;
+                    p.AppeasementDread = 0.0;
+                }
             }
         }
     }

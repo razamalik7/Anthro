@@ -49,6 +49,16 @@ namespace Anthro.Sim
         public long LastHealDay = -99999;
         public long LastLightningDay = -99999;
 
+        // Favor audit tracking (T10 A1)
+        public double FavorEarnedPrayer { get; set; }
+        public double FavorEarnedOffer { get; set; }
+        public double FavorEarnedRite { get; set; }
+        public double FavorEarnedOther { get; set; } = StartFavorPool;
+        public readonly Dictionary<string, double> FavorSpentByPower = new Dictionary<string, double>();
+        public long DaysBroke { get; set; }
+        public long FirstBrokeDay { get; set; } = -1;
+        public long DaysTotal { get; set; }
+
         public bool SpendFavor(double amount)
         {
             if (GodFaded || amount <= 0) return false;
@@ -135,6 +145,8 @@ namespace Anthro.Sim
                 if (Favor >= cost)
                 {
                     Favor -= cost;
+                    FavorSpentByPower.TryGetValue(cmd.PowerName, out double curSpent);
+                    FavorSpentByPower[cmd.PowerName] = curSpent + cost;
                     cmd.Execute(this);
                 }
             }

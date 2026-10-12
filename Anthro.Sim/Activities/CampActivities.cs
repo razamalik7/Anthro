@@ -288,9 +288,16 @@ namespace Anthro.Sim.Activities
             double dispositionFactor = 1.0 + Math.Abs(kind) * 1.5;
             double gain = actual * real * 2.5 * dispositionFactor;
 
+            sim.Region.FavorEarnedOffer += gain;
             sim.Region.Favor = Math.Min(sim.Region.FavorCap, sim.Region.Favor + gain);
             sim.ThisYear.FavorGain += gain;
             sim.ThisYear.FoodOffered += actual;
+
+            if (!Simulation.Off("relief") && P.Dread > 0.05)
+            {
+                P.AppeasementAct = "offer";
+                P.AppeasementDread = P.Dread;
+            }
 
             sim.Chronicle.Write(sim.Clock, Anthro.Sim.Core.Importance.Detail, $"{P.Name} offered {actual:F1} rations to the god.");
             sim.Region.GodEvents.Add(new GodEvent(sim.Clock.Tick, "Offer", $"{P.Name} made an offering of {actual:F1} food (+{gain:F1} favor)", (int)sim.Band.CampX, (int)sim.Band.CampY));

@@ -69,6 +69,13 @@ namespace Anthro.Sim.People
         /// <summary>Active divine nudges at life branch points (T8): fork -> choice.</summary>
         public readonly Dictionary<string, string> Nudges = new Dictionary<string, string>();
 
+        /// <summary>Per-person dread after a striking bad event (T10 A2). Fades gradually unless renewed.</summary>
+        public double Dread { get; set; } = 0.0;
+        public double DreadPeak { get; set; } = 0.0;
+        public string? AppeasementAct { get; set; } = null;
+        public double AppeasementDread { get; set; } = 0.0;
+        public long LastGodSignDay { get; set; } = -1;
+
         public double ConsumeNudgeWeight(string fork, double basePush = 0.5, params string[] targetChoices)
         {
             if (Nudges.TryGetValue(fork, out var pushedChoice))

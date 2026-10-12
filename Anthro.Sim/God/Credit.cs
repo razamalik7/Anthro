@@ -34,10 +34,51 @@ namespace Anthro.Sim
             {
                 foreach (var witness in band.Band.Members.Where(m => band.Grown(m) && m.Alive))
                 {
+                    witness.LastGodSignDay = Clock.Day;
                     double real = Simulation.GodReal(witness);
                     if (real <= 0.05 && focalPerson == null) continue; // Unbelievers do not attribute general events to divine will
 
                     double cred = witness.M(MindTrait.Credulity);
+
+                    // Learning from relief (T10 A2)
+                    if (!Simulation.Off("relief"))
+                    {
+                        if (!isGood)
+                        {
+                            if (!string.IsNullOrEmpty(witness.AppeasementAct))
+                            {
+                                // Another blow came despite an appeasement attempt: the attempt failed
+                                double failWeight = 0.20 * (0.4 + cred * 0.8) * Math.Max(0.2, real);
+                                if (witness.AppeasementAct == "offer")
+                                {
+                                    witness.Expect.Absorb(Simulation.GodOfferTopic, -1.0, failWeight, witness.Expect.Get(Simulation.GodOfferTopic, 0.0));
+                                    string actTopic = Simulation.GodActTopic(Act.Offer);
+                                    witness.Expect.Absorb(actTopic, -1.0, failWeight, witness.Expect.Get(actTopic, 0.0));
+                                }
+                                else if (witness.AppeasementAct == "pray")
+                                {
+                                    witness.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, failWeight, Simulation.GodAnswers(witness));
+                                }
+                                else
+                                {
+                                    string topic = $"god:{witness.AppeasementAct.ToLowerInvariant()}";
+                                    witness.Expect.Absorb(topic, -1.0, failWeight, witness.Expect.Get(topic, 0.0));
+                                }
+                                witness.AppeasementAct = null;
+                                witness.AppeasementDread = 0.0;
+                            }
+
+                            if (real > 0.05)
+                            {
+                                witness.Dread = Math.Min(1.0, witness.Dread + 0.6);
+                                witness.DreadPeak = Math.Max(witness.DreadPeak, witness.Dread);
+                            }
+                        }
+                        else
+                        {
+                            witness.Dread = Math.Max(0.0, witness.Dread - 0.4);
+                        }
+                    }
 
                     if (focalPerson != null)
                     {

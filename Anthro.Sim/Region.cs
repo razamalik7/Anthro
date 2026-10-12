@@ -161,6 +161,15 @@ namespace Anthro.Sim
                     if (c.PlantCapacity > c.WildCapacity && c.WildCapacity > 0) c.PlantCapacity -= (c.PlantCapacity - c.WildCapacity) * 0.05;
             foreach (var band in Bands.ToList()) band.Daily();
             ResolvePrayers();
+            if (!Simulation.Off("god") && !GodFaded)
+            {
+                DaysTotal++;
+                if (Favor < 5.0)
+                {
+                    DaysBroke++;
+                    if (FirstBrokeDay < 0) FirstBrokeDay = Clock.Day;
+                }
+            }
             using (Profiler.Measure("daily meetings")) Meetings();
             using (Profiler.Measure("daily encounters")) Encounters();
             foreach (var gone in Bands.Where(b => b.Extinct).ToList())

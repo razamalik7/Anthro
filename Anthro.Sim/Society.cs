@@ -459,6 +459,11 @@ namespace Anthro.Sim
                     carryHome.AddPlants(taken - meat, keeps: true);
                 }
                 var deed = new Deed { Day = Clock.Day, Actor = giver, Act = Act.Give, Target = asker, Hearth = home, Amount = give, Context = Lesson(Act.Give, RelationTo(giver, asker)) };
+                if (!Off("god") && !Off("relief") && giver.Dread > 0.05)
+                {
+                    giver.AppeasementAct = "give";
+                    giver.AppeasementDread = giver.Dread;
+                }
                 Happen(deed);
                 // The giver feels the cost now; any return comes later.
                 // The giver feels the cost now (more when their own hearth is short); seeing their own kin
@@ -533,6 +538,11 @@ namespace Anthro.Sim
                     if (give <= 0.05) continue;
                     MoveFood(h, other, give, out _);
                     var deed = new Deed { Day = Clock.Day, Actor = giver, Act = Act.Give, Target = asker, Hearth = other, Amount = give, Context = Lesson(Act.Give, RelationTo(giver, asker)) };
+                    if (!Off("god") && !Off("relief") && giver.Dread > 0.05)
+                    {
+                        giver.AppeasementAct = "give";
+                        giver.AppeasementDread = giver.Dread;
+                    }
                     Happen(deed);
                     Reciprocate(asker, giver, give);
                     foreach (var a in other.Adults(Clock))

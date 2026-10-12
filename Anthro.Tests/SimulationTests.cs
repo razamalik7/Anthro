@@ -873,6 +873,102 @@ public class SimulationTests
         double attackAfter = witness.Expect.Get(Simulation.GodActTopic(Act.Attack), 0.0);
         Assert.True(attackAfter > attackBefore, "Expected god:attack to rise when known killer is healed");
     }
+
+    [Fact]
+    public void BlowOfferingNoMoreBlowsGodOfferRises()
+    {
+        var region = Region.Create(7);
+        var sim = region.Founders;
+        var person = sim.Band.Members[0];
+
+        // Believer with baseline faith
+        person.Expect.Absorb(Simulation.GodRealTopic, 0.6, 1.0, 0.0);
+        double offerBefore = person.Expect.Get(Simulation.GodOfferTopic, 0.0);
+
+        // A striking bad event strikes near person (a blow)
+        region.InterpretStrikingEvent(sim.Band.CampX, sim.Band.CampY, isGood: false, "Omen");
+        Assert.True(person.Dread > 0.0, "Expected person to enter dread after a bad omen");
+
+        // Person makes an appeasement attempt while in dread
+        person.AppeasementAct = "offer";
+        person.AppeasementDread = person.Dread;
+
+        // No more blows come. Advance time to allow dread to ease continuously
+        for (int day = 0; day < 10; day++)
+        {
+            for (int h = 0; h < SimClock.HoursPerDay; h++) sim.Clock.Advance();
+            person.Health = 1.0;
+            person.Satiety = 1.0;
+            sim.FadeBelief(person);
+        }
+
+        double offerAfter = person.Expect.Get(Simulation.GodOfferTopic, 0.0);
+        Assert.True(offerAfter > offerBefore, $"Expected god:offer to rise after dread lifted without another blow (before={offerBefore:F3}, after={offerAfter:F3})");
+    }
+
+    [Fact]
+    public void BlowOfferingAnotherBlowGodOfferFalls()
+    {
+        var region = Region.Create(7);
+        var sim = region.Founders;
+        var person = sim.Band.Members[0];
+
+        person.Expect.Absorb(Simulation.GodRealTopic, 0.6, 1.0, 0.0);
+        person.Expect.Absorb(Simulation.GodOfferTopic, 0.3, 1.0, 0.0);
+        double offerBefore = person.Expect.Get(Simulation.GodOfferTopic, 0.0);
+
+        // First blow strikes
+        region.InterpretStrikingEvent(sim.Band.CampX, sim.Band.CampY, isGood: false, "Omen");
+        Assert.True(person.Dread > 0.0);
+
+        // Person makes an appeasement attempt
+        person.AppeasementAct = "offer";
+        person.AppeasementDread = person.Dread;
+
+        // Another blow strikes despite the offering!
+        region.InterpretStrikingEvent(sim.Band.CampX, sim.Band.CampY, isGood: false, "Omen");
+
+        double offerAfter = person.Expect.Get(Simulation.GodOfferTopic, 0.0);
+        Assert.True(offerAfter < offerBefore, $"Expected god:offer to fall when another blow struck despite offering (before={offerBefore:F3}, after={offerAfter:F3})");
+        Assert.Null(person.AppeasementAct);
+    }
+
+    [Fact]
+    public void OfferingsWithNoSignAtAllFadeWithoutDayCount()
+    {
+        var region = Region.Create(7);
+        var sim = region.Founders;
+        var person = sim.Band.Members[0];
+
+        person.Expect.Absorb(Simulation.GodRealTopic, 0.6, 1.0, 0.0);
+        person.Expect.Absorb(Simulation.GodOfferTopic, 0.8, 1.0, 0.0);
+
+        // Person made an offering on day 0
+        person.OwnDeeds.Add(new Remembered(new Deed { Day = 0, Actor = person, Act = Act.Offer, Amount = 5.0 }, true));
+        person.LastGodSignDay = -1; // No sign has ever arrived
+
+        // Advance 30 days without any sign (well beyond old 14-day window)
+        for (int day = 1; day <= 30; day++)
+        {
+            for (int h = 0; h < SimClock.HoursPerDay; h++) sim.Clock.Advance();
+            sim.FadeBelief(person);
+        }
+
+        double offerAt30 = person.Expect.Get(Simulation.GodOfferTopic, 0.0);
+
+        // Continue advancing from day 31 to 50
+        for (int day = 31; day <= 50; day++)
+        {
+            for (int h = 0; h < SimClock.HoursPerDay; h++) sim.Clock.Advance();
+            sim.FadeBelief(person);
+        }
+
+        double offerAt50 = person.Expect.Get(Simulation.GodOfferTopic, 0.0);
+
+        // Verify it continued fading well past 14 and 30 days without stopping
+        Assert.True(offerAt30 < 0.8, "Expected offer belief to fade significantly by day 30");
+        Assert.True(offerAt50 < offerAt30, $"Expected offer belief to continue fading between day 30 and 50 without any 14-day cutoff (day30={offerAt30:F3}, day50={offerAt50:F3})");
+    }
 }
 
 

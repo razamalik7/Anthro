@@ -204,4 +204,11 @@ Console.WriteLine($"  PLURAL now: {hubs.Count(h => h.Sex == Sex.Male)} men with 
 Console.WriteLine($"  breakups over run: {partings} parted + {leftFor} left for someone else; mothers with children by >1 father {fathers.Count(n => n > 1)}/{fathers.Count}");
 var ages = region.People.Select(p => Age(p, now)).ToList();
 Console.WriteLine($"AGE STRUCTURE now ({ages.Count}): <5 {ages.Count(a => a < 5) / (double)ages.Count:P0}, <15 {ages.Count(a => a < 15) / (double)ages.Count:P0}, 15-44 {ages.Count(a => a >= 15 && a < 45) / (double)ages.Count:P0}, 45+ {ages.Count(a => a >= 45) / (double)ages.Count:P0}, 60+ {ages.Count(a => a >= 60) / (double)ages.Count:P0}; density {ages.Count / 1600.0:F3}/km2; bands {region.Bands.Count}, mean size {ages.Count / (double)Math.Max(1, region.Bands.Count):F0}");
+if (!Simulation.Off("god"))
+{
+    double ySim = Math.Max(1.0, region.Clock.Year);
+    double pctBroke = region.DaysTotal > 0 ? (double)region.DaysBroke / region.DaysTotal : 0.0;
+    var spentList = region.FavorSpentByPower.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{kv.Value / ySim:F2}");
+    Console.WriteLine($"FAVOR_AUDIT bot {region.Policy} earned/yr prayer:{region.FavorEarnedPrayer/ySim:F2} offer:{region.FavorEarnedOffer/ySim:F2} rite:{region.FavorEarnedRite/ySim:F2} other:{region.FavorEarnedOther/ySim:F2} | spent/yr {(spentList.Any() ? string.Join(" ", spentList) : "none")} | broke_pct {pctBroke*100:F1}% first_broke_day {region.FirstBrokeDay}");
+}
 }
