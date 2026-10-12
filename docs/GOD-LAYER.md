@@ -95,3 +95,17 @@ rate. All behind `ANTHRO_OFF` switches (`god`, `pray`, `offer`, `rite`, `credit`
   enough believers; expensive, limited per generation, deterministic, natural events; the most striking
   events for credit and blame (smiting the innocent costs believers; healing a killer may teach that the god
   favours killers). More such acts later.
+
+## Decisions 2026-10-12 (owner + Claude, after reviewing T9C)
+- **A god's character is a pattern, not a label.** What it responds to and how (rewarding sharing, demanding
+  offerings, destroying until appeased, punishing wrongdoing, acting at random); people learn those patterns,
+  truly or falsely, and that is their religion. Kind/cruel never means success or failure.
+- **Two measures:** help vs harm (what the god did to people; drives Heal/Lightning unlocks) and what people
+  believe the god wants (the `god:<act>` profile per people).
+- **Learning from relief:** besides "good followed X", people learn "bad stopped after X" (dread that lifts after
+  an appeasing act). This is how fear offerings arise under a malevolent god.
+- **Where offering comes from:** mainly as an escalated plea in a desperate, unanswered crisis; grave goods
+  (with burial rites) make it likelier; a small cultural seed varies by people. Sharing food teaches "the god
+  likes generosity" (`god:give`), not offering.
+- **No offering timer:** offerings stay open until a sign; hope erodes daily, like prayers.
+- **Skilful bot:** audit its favor before tuning. Not merging to master until this round is smoothed.
