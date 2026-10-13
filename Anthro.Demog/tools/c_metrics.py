@@ -92,26 +92,50 @@ def parse_run(filepath):
     rites_count = len(re.findall(r'Sacred rite held', content))
 
     # Culture norms and god beliefs at Y50
-    cult_matches = re.findall(r'culture \[.*?\].*?honour\s+([\d.-]+)\s+peacemaking\s+([\d.-]+)\s+\|\s+rationing\s+([\d.-]+)\s+demand\s+([\d.-]+)\s+elders\s+([\d.-]+)\s+hunting\s+([\d.-]+)\s+plural\s+([\d.-]+)(?:.*?belief\s+\d+/\d+\s+mean\s+([\d.]+)\s+answers\s+([\d.]+)\s+kind\s+([\d.-]+))?(?:.*?god acts\s+take\s+([\d.-]+)\s+give\s+([\d.-]+)\s+attack\s+([\d.-]+)\s+offer\s+([\d.-]+))?', content)
+    cult_lines = [l for l in content.splitlines() if re.search(r'^\s*culture\s+\[', l)]
+    last_cult = cult_lines[-1] if cult_lines else None
     
-    last_cult = cult_matches[-1] if cult_matches else None
+    norm_honour = 0.0
+    norm_peace = 0.0
+    norm_rationing = 0.0
+    norm_demand = 0.0
+    norm_elders = 0.0
+    norm_hunting = 0.0
+    norm_plural = 0.0
     
-    norm_honour = float(last_cult[0]) if last_cult and last_cult[0] else 0.0
-    norm_peace = float(last_cult[1]) if last_cult and last_cult[1] else 0.0
-    norm_rationing = float(last_cult[2]) if last_cult and last_cult[2] else 0.0
-    norm_demand = float(last_cult[3]) if last_cult and last_cult[3] else 0.0
-    norm_elders = float(last_cult[4]) if last_cult and last_cult[4] else 0.0
-    norm_hunting = float(last_cult[5]) if last_cult and last_cult[5] else 0.0
-    norm_plural = float(last_cult[6]) if last_cult and last_cult[6] else 0.0
-    
-    god_real = float(last_cult[7]) if last_cult and len(last_cult) > 7 and last_cult[7] else 0.0
-    god_answers = float(last_cult[8]) if last_cult and len(last_cult) > 8 and last_cult[8] else 0.0
-    god_kind = float(last_cult[9]) if last_cult and len(last_cult) > 9 and last_cult[9] else 0.0
-    
-    god_take = float(last_cult[10]) if last_cult and len(last_cult) > 10 and last_cult[10] else 0.0
-    god_give = float(last_cult[11]) if last_cult and len(last_cult) > 11 and last_cult[11] else 0.0
-    god_attack = float(last_cult[12]) if last_cult and len(last_cult) > 12 and last_cult[12] else 0.0
-    god_offer = float(last_cult[13]) if last_cult and len(last_cult) > 13 and last_cult[13] else 0.0
+    god_real = None
+    god_answers = None
+    god_kind = None
+    god_take = None
+    god_give = None
+    god_attack = None
+    god_offer = None
+
+    if last_cult:
+        m_sec = re.search(r'honour\s+([\d.-]+)\s+peacemaking\s+([\d.-]+)\s+\|\s+rationing\s+([\d.-]+)\s+demand\s+([\d.-]+)\s+elders\s+([\d.-]+)\s+hunting\s+([\d.-]+)\s+plural\s+([\d.-]+)', last_cult)
+        if m_sec:
+            norm_honour = float(m_sec.group(1))
+            norm_peace = float(m_sec.group(2))
+            norm_rationing = float(m_sec.group(3))
+            norm_demand = float(m_sec.group(4))
+            norm_elders = float(m_sec.group(5))
+            norm_hunting = float(m_sec.group(6))
+            norm_plural = float(m_sec.group(7))
+            
+        if '| belief' in last_cult:
+            m_bel = re.search(r'belief\s+\d+/\d+\s+mean\s+([\d.]+)\s+answers\s+([\d.]+)\s+kind\s+([\d.-]+)', last_cult)
+            if m_bel:
+                god_real = float(m_bel.group(1))
+                god_answers = float(m_bel.group(2))
+                god_kind = float(m_bel.group(3))
+                
+        if '| god acts' in last_cult:
+            m_act = re.search(r'god acts\s+take\s+([\d.-]+)\s+give\s+([\d.-]+)\s+attack\s+([\d.-]+)\s+offer\s+([\d.-]+)', last_cult)
+            if m_act:
+                god_take = float(m_act.group(1))
+                god_give = float(m_act.group(2))
+                god_attack = float(m_act.group(3))
+                god_offer = float(m_act.group(4))
 
     # Hours
     pray_hrs = [float(x) for x in re.findall(r' Pray ([\d.]+)', content)]
@@ -190,22 +214,22 @@ def summarize_prefix(prefix):
         'pray_h': st.mean(r['pray_h'] for r in runs),
         'techs': st.mean(r['techs'] for r in runs),
         'rites': st.mean(r['rites'] for r in runs),
-        'god_real': st.mean(r['god_real'] for r in runs),
-        'god_answers': st.mean(r['god_answers'] for r in runs),
-        'god_kind': st.mean(r['god_kind'] for r in runs),
-        'god_take': st.mean(r['god_take'] for r in runs),
-        'god_give': st.mean(r['god_give'] for r in runs),
-        'god_attack': st.mean(r['god_attack'] for r in runs),
-        'god_offer': st.mean(r['god_offer'] for r in runs),
+        'god_real': (st.mean([r['god_real'] for r in runs if r['god_real'] is not None]) if any(r['god_real'] is not None for r in runs) else None),
+        'god_answers': (st.mean([r['god_answers'] for r in runs if r['god_answers'] is not None]) if any(r['god_answers'] is not None for r in runs) else None),
+        'god_kind': (st.mean([r['god_kind'] for r in runs if r['god_kind'] is not None]) if any(r['god_kind'] is not None for r in runs) else None),
+        'god_take': (st.mean([r['god_take'] for r in runs if r['god_take'] is not None]) if any(r['god_take'] is not None for r in runs) else None),
+        'god_give': (st.mean([r['god_give'] for r in runs if r['god_give'] is not None]) if any(r['god_give'] is not None for r in runs) else None),
+        'god_attack': (st.mean([r['god_attack'] for r in runs if r['god_attack'] is not None]) if any(r['god_attack'] is not None for r in runs) else None),
+        'god_offer': (st.mean([r['god_offer'] for r in runs if r['god_offer'] is not None]) if any(r['god_offer'] is not None for r in runs) else None),
         'norm_rationing': st.mean(r['norm_rationing'] for r in runs),
         'norm_demand': st.mean(r['norm_demand'] for r in runs),
         'winter_fed': st.mean(r['winter_fed'] for r in runs),
     }
 
 def print_multi_dimension_table(prefixes):
-    print(f"\n{'='*130}")
+    print(f"\n{'='*136}")
     print("MULTI-DIMENSION GOD COMPARISON (Batch C / PLANNING.md)")
-    print(f"{'='*130}")
+    print(f"{'='*136}")
     
     header = (
         f"{'Prefix':<18} | "
@@ -215,15 +239,21 @@ def print_multi_dimension_table(prefixes):
         f"{'Moves':>5} {'Splits':>6} | "
         f"{'Techs':>5} {'Rites':>5} | "
         f"{'Real':>5} {'Kind':>5} {'Answ':>5} | "
-        f"{'G:Take':>6} {'G:Att':>5}"
+        f"{'G:Take':>6} {'G:Att':>5} {'G:Off':>5}"
     )
     print(header)
-    print("-" * 130)
+    print("-" * 136)
     for p in prefixes:
         s = summarize_prefix(p)
         if not s:
             print(f"{p:<18} | NO DATA")
             continue
+        real_s = f"{s['god_real']:>5.2f}" if s['god_real'] is not None else "    -"
+        kind_s = f"{s['god_kind']:>5.2f}" if s['god_kind'] is not None else "    -"
+        answ_s = f"{s['god_answers']:>5.2f}" if s['god_answers'] is not None else "    -"
+        take_s = f"{s['god_take']:>6.2f}" if s['god_take'] is not None else "     -"
+        att_s = f"{s['god_attack']:>5.2f}" if s['god_attack'] is not None else "    -"
+        off_s = f"{s['god_offer']:>5.2f}" if s['god_offer'] is not None else "    -"
         line = (
             f"{s['prefix']:<18} | "
             f"{s['med_pop']:>5.1f} {s['total_pop']:>5d} {s['dipped_15_count']:>5d} | "
@@ -231,11 +261,11 @@ def print_multi_dimension_table(prefixes):
             f"{s['gangs']:>6.1f} {s['quarrels']:>5.1f} | "
             f"{s['campmoves']:>5.1f} {s['splits']:>6.1f} | "
             f"{s['techs']:>5.1f} {s['rites']:>5.1f} | "
-            f"{s['god_real']:>5.2f} {s['god_kind']:>5.2f} {s['god_answers']:>5.2f} | "
-            f"{s['god_take']:>6.2f} {s['god_attack']:>5.2f}"
+            f"{real_s} {kind_s} {answ_s} | "
+            f"{take_s} {att_s} {off_s}"
         )
         print(line)
-    print(f"{'='*130}\n")
+    print(f"{'='*136}\n")
 
 if __name__ == '__main__':
     prefixes = sys.argv[1:]

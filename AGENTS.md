@@ -61,7 +61,7 @@ Use the full dotnet path on this machine: `"/c/Program Files/dotnet/dotnet"` (Gi
   the reference runs) unless the task says so.
 
 ## Don't waste runs (multi-world runs are the biggest time cost)
-- **Never re-run reference results.** `runs/base_*` (seeds 41-60) and `runs/base2_*` (61-80) are the god-off
+- **Never re-run reference results.** `runs/godoff_*` (seeds 41-60) and `runs/godoff2_*` (61-80) are the god-off
   references; reuse them. Reuse any earlier run whose code hasn't changed since (say which file you reused).
 - **Only run conditions the change can affect.** E.g. a change to offerings needs idle + the bots that use
   offerings, not every bot and every ablation. Ablations only when a result needs explaining.

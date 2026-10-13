@@ -11,8 +11,20 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 RUNS_DIR = os.path.join(ROOT_DIR, "runs")
 
 def parse_prefix(prefix):
-    pat = re.compile(rf'^{prefix}_\d+\.txt$')
-    files = sorted([f for f in glob.glob(os.path.join(RUNS_DIR, f"{prefix}_*.txt")) if pat.match(os.path.basename(f))])
+    files = []
+    # If prefix ends with a digit (like skilful2), match strictly that prefix
+    if prefix[-1].isdigit():
+        pat = re.compile(rf'^{prefix}_\d+\.txt$')
+        files = sorted([f for f in glob.glob(os.path.join(RUNS_DIR, f"{prefix}_*.txt")) if pat.match(os.path.basename(f))])
+    else:
+        # Check if both prefix and prefix2 exist (e.g. skilful and skilful2)
+        pat1 = re.compile(rf'^{prefix}_\d+\.txt$')
+        pat2 = re.compile(rf'^{prefix}2_\d+\.txt$')
+        f1 = sorted([f for f in glob.glob(os.path.join(RUNS_DIR, f"{prefix}_*.txt")) if pat1.match(os.path.basename(f))])
+        f2 = sorted([f for f in glob.glob(os.path.join(RUNS_DIR, f"{prefix}2_*.txt")) if pat2.match(os.path.basename(f))])
+        files = f1 + f2
+        if not files:
+            files = f1
     
     if not files:
         return None
@@ -103,6 +115,19 @@ def print_audit(prefixes):
         fbd_str = f"{r['first_broke_day_avg']:.0f} / {r['first_broke_day_min']}" if r['first_broke_day_avg'] >= 0 else "never"
         print(f"{r['prefix']:<12} | {r['prayer']:4.1f}  {r['offer']:4.1f}  {r['rite']:4.1f}  {r['other']:4.1f} {r['total_earned']:5.1f} | {r['total_spent']:5.1f}  {powers:<18} | {r['broke_pct']:6.1f}% | {fbd_str:<15} | {r['worlds_broke']:>2}/{r['n']}")
     print("=" * 115)
+
+    print("\n" + "=" * 115)
+    print("ACTS PER YEAR BY SIZE VS TARGET (PLANNING.md / GOD-LAYER.md)")
+    print("=" * 115)
+    print(f"{'Prefix':<12} | {'Small Acts/yr (Target ~24)':<28} | {'Medium Acts/yr (Target 3-4)':<28} | {'Large Acts/yr (Target ~1)':<26}")
+    print("-" * 115)
+    for r in results:
+        ps = r["power_spents"]
+        small = (ps.get("Omen", 0.0) / 4.5) + (ps.get("ForkNudge", 0.0) / 10.0)
+        med = (ps.get("BountyPlant", 0.0) / 17.0) + (ps.get("BountyAnimal", 0.0) / 25.0)
+        large = (ps.get("Weather", 0.0) / 60.0) + (ps.get("Heal", 0.0) / 40.0) + (ps.get("BlessedBirth", 0.0) / 35.0)
+        print(f"{r['prefix']:<12} | {small:>5.2f} acts/yr ({small/24.0*100:>5.1f}% target)   | {med:>5.2f} acts/yr ({med/3.5*100:>5.1f}% target)   | {large:>5.3f} acts/yr ({large/1.0*100:>5.1f}% target)")
+    print("=" * 115 + "\n")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
