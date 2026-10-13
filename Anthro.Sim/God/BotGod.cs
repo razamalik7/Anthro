@@ -204,25 +204,13 @@ namespace Anthro.Sim
         {
             if (Simulation.Off("skilful")) return;
 
-            // 1. Weather before a hard winter (large act: ~once a year or rarer):
-            // In late autumn (DayOfSeason >= 75), if winter severity is harsh (> 0.8), soften it once per year.
-            // Requires 75 favor to preserve a 15-favor cushion (never zeroing out the pool).
-            if (region.Clock.Season == Season.Autumn && region.Clock.DayOfSeason >= 75 && region.Clock.Hour == 12)
-            {
-                if (region.Clock.Day - region.LastWeatherDay >= 360 && region.World.Climate.WinterSeverity > 0.8 && region.Favor >= 75)
-                {
-                    region.CastWeather(Season.Winter, -0.4);
-                    region.LastWeatherDay = region.Clock.Day;
-                }
-            }
-
-            // 2. An omen right after a witnessed theft (small act: weekly/biweekly pace):
-            // Discourages theft and restores moral order with a stern sign.
+            // 1. An omen right after a witnessed theft (small act, 5 favor):
+            // Restores moral order and deters theft immediately when a theft occurs.
             foreach (var b in region.Bands)
             {
                 if (region.Clock.Tick - b.LastWitnessedTheftTick <= 12)
                 {
-                    if (region.Favor >= 5)
+                    if (region.Favor >= 5.0)
                     {
                         region.CastOmen((int)b.Band.CampX, (int)b.Band.CampY, "A low rumble of celestial anger shook the stolen hearth", isGood: false);
                     }
@@ -230,27 +218,47 @@ namespace Anthro.Sim
                 }
             }
 
-            // 3. Food when a camp is genuinely starving (medium act: a few times a year):
+            // 2. Weather before a hard season (large act, 60 favor, 1/year limit):
+            // In Autumn or early Winter, soften harsh winter before freeze-up.
+            if ((region.Clock.Season == Season.Autumn || (region.Clock.Season == Season.Winter && region.Clock.DayOfSeason < 30)) && region.Clock.Hour == 12)
+            {
+                if (region.Clock.Day - region.LastWeatherDay >= 360 && region.World.Climate.WinterSeverity > 0.0 && region.Favor >= 60.0)
+                {
+                    region.CastWeather(Season.Winter, -0.4);
+                    region.LastWeatherDay = region.Clock.Day;
+                }
+            }
+
+            // 3. Heal critically sick / dying when unlocked (large act, 50 favor, generation limit in CanCastHeal):
+            if (region.Favor >= 50.0)
+            {
+                var dying = region.People.FirstOrDefault(p => p.Alive && p.Illness != null && p.Health < 0.50 && region.CanCastHeal(p));
+                if (dying != null)
+                {
+                    region.CastHeal(dying);
+                }
+            }
+
+            // 4. Food when a camp is hungry (medium act, 20 plant / 30 animal favor, 1/season/camp limit):
             var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted);
             if (unhelped != null)
             {
                 if (unhelped.Need == PrayerNeed.Hunger)
                 {
-                    bool campStarving = unhelped.Asker != null && (unhelped.Asker.Satiety < 0.25 || (unhelped.Asker.Home?.Food.Total ?? 0) < 1.0);
+                    bool campStarving = unhelped.Asker != null && (unhelped.Asker.Satiety < 0.40 || (unhelped.Asker.Home?.Food.Total ?? 0) < 2.0);
                     var camp = region.Bands.FirstOrDefault(b => b.Band.CampX == unhelped.CampX && b.Band.CampY == unhelped.CampY);
                     bool canBounty = camp == null || (region.Clock.Day - camp.LastBountyDay >= 90);
 
                     if (campStarving && canBounty)
                     {
                         bool isWinter = region.Clock.Season == Season.Winter;
-                        // Require extra favor cushion (favor >= cost + 15)
-                        if (isWinter && region.Favor >= 45)
+                        if (isWinter && region.Favor >= 30.0)
                         {
                             region.CastBounty(unhelped.CampX, unhelped.CampY, animals: true);
                             unhelped.PowerCasted = true;
                             if (camp != null) camp.LastBountyDay = region.Clock.Day;
                         }
-                        else if (!isWinter && region.Favor >= 35)
+                        else if (!isWinter && region.Favor >= 20.0)
                         {
                             region.CastBounty(unhelped.CampX, unhelped.CampY, animals: false);
                             unhelped.PowerCasted = true;
@@ -260,12 +268,12 @@ namespace Anthro.Sim
                 }
                 else if (unhelped.Need == PrayerNeed.Sickness)
                 {
-                    if (region.CanCastHeal(unhelped.Asker) && region.Favor >= 65)
+                    if (region.CanCastHeal(unhelped.Asker) && region.Favor >= 50.0)
                     {
                         region.CastHeal(unhelped.Asker);
                         unhelped.PowerCasted = true;
                     }
-                    else if (region.Favor >= 5)
+                    else if (region.Favor >= 5.0)
                     {
                         region.CastOmen(unhelped.CampX, unhelped.CampY, "A gentle sign touches the sick", isGood: true);
                         unhelped.PowerCasted = true;
@@ -273,31 +281,26 @@ namespace Anthro.Sim
                 }
             }
 
-            // Also check camps without open prayers if in acute famine (medium act, max once/season)
-            if (region.Favor >= 45 && region.Clock.Hour == 12)
+            // Also check camps in acute famine without open prayers (1/season/camp limit)
+            if (region.Clock.Hour == 12)
             {
-                var acuteCamp = region.Bands.FirstOrDefault(b => b.Band.FoodTotal < b.Band.Members.Count * 0.5 && b.Band.Members.Any(m => m.Reserve < 0.25) && (region.Clock.Day - b.LastBountyDay >= 90));
-                if (acuteCamp != null)
+                bool isWinter = region.Clock.Season == Season.Winter;
+                double cost = isWinter ? 30.0 : 20.0;
+                if (region.Favor >= cost)
                 {
-                    region.CastBounty((int)acuteCamp.Band.CampX, (int)acuteCamp.Band.CampY, animals: region.Clock.Season == Season.Winter);
-                    acuteCamp.LastBountyDay = region.Clock.Day;
+                    var acuteCamp = region.Bands.FirstOrDefault(b => (b.Band.FoodTotal < b.Band.Members.Count * 1.5 || b.Band.Members.Any(m => m.Reserve < 0.35)) && (region.Clock.Day - b.LastBountyDay >= 90));
+                    if (acuteCamp != null)
+                    {
+                        region.CastBounty((int)acuteCamp.Band.CampX, (int)acuteCamp.Band.CampY, animals: isWinter);
+                        acuteCamp.LastBountyDay = region.Clock.Day;
+                    }
                 }
             }
 
-            // 4. Heal directly if someone is dying of sickness and Heal is unlocked (large act: rare)
-            if (region.Favor >= 65)
+            // 5. Blessed Birth when demographic support needed (large act, 40 favor, 1/generation limit):
+            if (region.Favor >= 40.0 && region.Clock.Hour == 12)
             {
-                var dying = region.People.FirstOrDefault(p => p.Alive && p.Illness != null && p.Health < 0.35 && region.CanCastHeal(p));
-                if (dying != null)
-                {
-                    region.CastHeal(dying);
-                }
-            }
-
-            // 5. Blessings sparingly (large act: once every ~12 years = 4320 days)
-            if (region.Favor >= 55 && region.Clock.Day % 4320 == 0 && region.Clock.Hour == 12)
-            {
-                var mother = region.People.FirstOrDefault(p => p.Alive && p.Sex == Sex.Female && p.Spouses.Count > 0 && !p.BlessedNextBirth && p.AgeYears(region.Clock) >= 18 && p.AgeYears(region.Clock) <= 32);
+                var mother = region.People.FirstOrDefault(p => p.Alive && p.Sex == Sex.Female && p.Spouses.Count > 0 && p.AgeYears(region.Clock) >= 18 && p.AgeYears(region.Clock) <= 35 && region.CanCastBlessedBirth(p));
                 if (mother != null)
                 {
                     region.CastBlessedBirth(mother);

@@ -49,6 +49,7 @@ namespace Anthro.Sim
         public long LastHealDay = -99999;
         public long LastLightningDay = -99999;
         public long LastWeatherDay = -99999;
+        public long LastBlessedBirthDay = -99999;
 
         // Favor audit tracking (T10 A1)
         public double FavorEarnedPrayer { get; set; }
@@ -102,6 +103,12 @@ namespace Anthro.Sim
 
         public void CastBlessedBirth(Person mother) =>
             EnqueueGodCommand(new BlessedBirthCommand(mother));
+
+        public bool CanCastBlessedBirth(Person mother) =>
+            mother != null && mother.Alive && mother.Sex == Sex.Female &&
+            !mother.BlessedNextBirth &&
+            !Simulation.Off("god") && !Simulation.Off("power") && !Simulation.Off("bless") &&
+            (Clock.Day - LastBlessedBirthDay >= 3600);
 
         public void CastForkNudge(Person person, string choice) =>
             EnqueueGodCommand(new ForkNudgeCommand(person, choice));
@@ -293,6 +300,7 @@ namespace Anthro.Sim
             public void Execute(Region region)
             {
                 if (Simulation.Off("god") || Simulation.Off("power") || Simulation.Off("bless")) return;
+                region.LastBlessedBirthDay = region.Clock.Day;
                 _mother.BlessedNextBirth = true;
                 region.Reputation += 1.5;
                 region.Chronicle.Write(region.Clock, Importance.Notable, $"A divine blessing was laid upon {_mother.Name}'s unborn child.");
