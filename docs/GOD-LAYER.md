@@ -109,3 +109,8 @@ rate. All behind `ANTHRO_OFF` switches (`god`, `pray`, `offer`, `rite`, `credit`
   likes generosity" (`god:give`), not offering.
 - **No offering timer:** offerings stay open until a sign; hope erodes daily, like prayers.
 - **Skilful bot:** audit its favor before tuning. Not merging to master until this round is smoothed.
+- **Offerings are shared feasts (2026-10-12):** most offered food is eaten by those present (bonding like a
+  gathering); only a small part is burned or left for the god, and favor comes from that part.
+- **Favor pacing target (2026-10-12, for a faithful band of ~30, scaling with believers):** small acts (omen,
+  nudge) every week or two; medium (bounty) a few times a year; large (weather, heal, lightning, blessed birth)
+  about once a year or rarer. Cap and income rates are set to hit this pace.
