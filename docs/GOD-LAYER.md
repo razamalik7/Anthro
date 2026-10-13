@@ -114,3 +114,16 @@ rate. All behind `ANTHRO_OFF` switches (`god`, `pray`, `offer`, `rite`, `credit`
 - **Favor pacing target (2026-10-12, for a faithful band of ~30, scaling with believers):** small acts (omen,
   nudge) every week or two; medium (bounty) a few times a year; large (weather, heal, lightning, blessed birth)
   about once a year or rarer. Cap and income rates are set to hit this pace.
+
+## Decisions 2026-10-13 (owner + Claude, after M2)
+- **Everyday devotion:** believers pray and give thanks in good times too; a learned habit (`god:thank`). Easy
+  times may thin out devotion, emergently (surprise-weighted credit), never by rule.
+- **Favor bank leaks instead of capping:** favor above what believers sustain decays slowly; no hard clip.
+- **Belief is living:** strength (skeptic / open / believer / devout, as reporting bands) and content (`god:<act>`,
+  kind, answers) per person; diversity from temperament, experience and personal shocks; the devout teach more
+  strongly. One generation can take people from "nothing" to "something's out there"; a full religion (shared,
+  stable content and practice) takes generations. Belief fades within ~a generation when the god goes quiet.
+- **Targets after ~25 years with a responsive god:** most open or believer, ~10-20% devout, a lasting skeptic
+  minority ~10-20%; belief content never unanimous and different between camps.
+- **Pacing scales with faith:** new god ~1 small act a month; faithful band ~weekly small, a few medium a year,
+  ~1 large a year.
