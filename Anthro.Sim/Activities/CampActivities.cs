@@ -282,16 +282,46 @@ namespace Anthro.Sim.Activities
             double actual = home.Food.Take(Math.Min(_amount, home.Food.Total), out _);
             if (actual <= 0) return;
 
+            // A4a (owner decision 2026-10-12): An offering is a meal shared with the god.
+            // Only 15% is burned/sacrificed for the god; 85% is eaten at a shared feast by those in camp,
+            // nourishing them and bonding the group like a gathering.
+            double burned = actual * 0.15;
+            double shared = actual - burned;
+
+            var attendees = sim.Band.Members.Where(m => !(m.Current is Visit) && m.AgeYears(sim.Clock) >= 1).ToList();
+            if (attendees.Count > 0)
+            {
+                double portion = shared / attendees.Count;
+                foreach (var m in attendees)
+                {
+                    m.Stomach = Math.Min(1.2, m.Stomach + portion / Math.Max(0.1, sim.DailyNeed(m)));
+                }
+                sim.ThisYear.Eaten += shared;
+
+                // Shared sacred feast bonds attendees (like Gatherings.cs)
+                for (int i = 0; i < attendees.Count; i++)
+                {
+                    for (int j = i + 1; j < Math.Min(attendees.Count, i + 6); j++)
+                    {
+                        var a = attendees[i]; var b = attendees[j];
+                        if (a.GetAffinity(b) < 0.3) a.AddAffinity(b, 0.01);
+                        if (b.GetAffinity(a) < 0.3) b.AddAffinity(a, 0.01);
+                    }
+                }
+                foreach (var m in attendees) m.Discontent *= 0.95;
+            }
+
             double real = Simulation.GodReal(P);
             double kind = Simulation.GodKind(P);
             // Disposition factor: fear appeasement when cruel, devotion/gratitude when kind
             double dispositionFactor = 1.0 + Math.Abs(kind) * 1.5;
-            double gain = actual * real * 2.5 * dispositionFactor;
+            // Favor comes strictly from what is given up (the burned share)
+            double gain = burned * real * 8.0 * dispositionFactor;
 
             sim.Region.FavorEarnedOffer += gain;
             sim.Region.Favor = Math.Min(sim.Region.FavorCap, sim.Region.Favor + gain);
             sim.ThisYear.FavorGain += gain;
-            sim.ThisYear.FoodOffered += actual;
+            sim.ThisYear.FoodOffered += burned;
 
             if (!Simulation.Off("relief") && P.Dread > 0.05)
             {
@@ -299,10 +329,10 @@ namespace Anthro.Sim.Activities
                 P.AppeasementDread = P.Dread;
             }
 
-            sim.Chronicle.Write(sim.Clock, Anthro.Sim.Core.Importance.Detail, $"{P.Name} offered {actual:F1} rations to the god.");
-            sim.Region.GodEvents.Add(new GodEvent(sim.Clock.Tick, "Offer", $"{P.Name} made an offering of {actual:F1} food (+{gain:F1} favor)", (int)sim.Band.CampX, (int)sim.Band.CampY));
+            sim.Chronicle.Write(sim.Clock, Anthro.Sim.Core.Importance.Detail, $"{P.Name} held an offering feast of {actual:F1} rations ({burned:F1} burned for the god).");
+            sim.Region.GodEvents.Add(new GodEvent(sim.Clock.Tick, "Offer", $"{P.Name} held an offering feast ({burned:F1} burned, +{gain:F1} favor)", (int)sim.Band.CampX, (int)sim.Band.CampY));
             
-            sim.HappenHere(new People.Deed { Day = sim.Clock.Day, Actor = P, Act = People.Act.Offer, Amount = actual, Hearth = home });
+            sim.HappenHere(new People.Deed { Day = sim.Clock.Day, Actor = P, Act = People.Act.Offer, Amount = burned, Hearth = home });
         }
     }
 }

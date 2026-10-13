@@ -54,6 +54,7 @@ namespace Anthro.Sim
         public readonly Band Band = new Band();
         public DiscoveryWeb? Web => Region.Web;
         public long LastWitnessedTheftTick = -99999;
+        public long LastBountyDay = -99999;
 
         /// <summary>
         /// People from other bands who are here to talk: guests who walked over to visit, and the

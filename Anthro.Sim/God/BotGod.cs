@@ -204,18 +204,19 @@ namespace Anthro.Sim
         {
             if (Simulation.Off("skilful")) return;
 
-            // 1. Weather before a hard winter:
-            // In late autumn / very early winter, if winter severity is high, soften it.
-            if ((region.Clock.Season == Season.Autumn && region.Clock.DayOfSeason >= 70 && region.Clock.Hour == 12) ||
-                (region.Clock.Season == Season.Winter && region.Clock.DayOfSeason <= 5 && region.Clock.Hour == 12))
+            // 1. Weather before a hard winter (large act: ~once a year or rarer):
+            // In late autumn (DayOfSeason >= 75), if winter severity is harsh (> 0.8), soften it once per year.
+            // Requires 75 favor to preserve a 15-favor cushion (never zeroing out the pool).
+            if (region.Clock.Season == Season.Autumn && region.Clock.DayOfSeason >= 75 && region.Clock.Hour == 12)
             {
-                if (region.World.Climate.WinterSeverity > 0.5 && region.Favor >= 60)
+                if (region.Clock.Day - region.LastWeatherDay >= 360 && region.World.Climate.WinterSeverity > 0.8 && region.Favor >= 75)
                 {
                     region.CastWeather(Season.Winter, -0.4);
+                    region.LastWeatherDay = region.Clock.Day;
                 }
             }
 
-            // 2. An omen right after a witnessed theft:
+            // 2. An omen right after a witnessed theft (small act: weekly/biweekly pace):
             // Discourages theft and restores moral order with a stern sign.
             foreach (var b in region.Bands)
             {
@@ -229,31 +230,37 @@ namespace Anthro.Sim
                 }
             }
 
-            // 3. Food when a camp is genuinely starving:
+            // 3. Food when a camp is genuinely starving (medium act: a few times a year):
             var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted);
             if (unhelped != null)
             {
                 if (unhelped.Need == PrayerNeed.Hunger)
                 {
                     bool campStarving = unhelped.Asker != null && (unhelped.Asker.Satiety < 0.25 || (unhelped.Asker.Home?.Food.Total ?? 0) < 1.0);
-                    if (campStarving)
+                    var camp = region.Bands.FirstOrDefault(b => b.Band.CampX == unhelped.CampX && b.Band.CampY == unhelped.CampY);
+                    bool canBounty = camp == null || (region.Clock.Day - camp.LastBountyDay >= 90);
+
+                    if (campStarving && canBounty)
                     {
                         bool isWinter = region.Clock.Season == Season.Winter;
-                        if (isWinter && region.Favor >= 30)
+                        // Require extra favor cushion (favor >= cost + 15)
+                        if (isWinter && region.Favor >= 45)
                         {
                             region.CastBounty(unhelped.CampX, unhelped.CampY, animals: true);
                             unhelped.PowerCasted = true;
+                            if (camp != null) camp.LastBountyDay = region.Clock.Day;
                         }
-                        else if (region.Favor >= 20)
+                        else if (!isWinter && region.Favor >= 35)
                         {
                             region.CastBounty(unhelped.CampX, unhelped.CampY, animals: false);
                             unhelped.PowerCasted = true;
+                            if (camp != null) camp.LastBountyDay = region.Clock.Day;
                         }
                     }
                 }
                 else if (unhelped.Need == PrayerNeed.Sickness)
                 {
-                    if (region.CanCastHeal(unhelped.Asker) && region.Favor >= 50)
+                    if (region.CanCastHeal(unhelped.Asker) && region.Favor >= 65)
                     {
                         region.CastHeal(unhelped.Asker);
                         unhelped.PowerCasted = true;
@@ -266,18 +273,19 @@ namespace Anthro.Sim
                 }
             }
 
-            // Also check camps without open prayers if in acute famine
-            if (region.Favor >= 25 && region.Clock.Hour == 12)
+            // Also check camps without open prayers if in acute famine (medium act, max once/season)
+            if (region.Favor >= 45 && region.Clock.Hour == 12)
             {
-                var acuteCamp = region.Bands.FirstOrDefault(b => b.Band.FoodTotal < b.Band.Members.Count * 0.5 && b.Band.Members.Any(m => m.Reserve < 0.25));
+                var acuteCamp = region.Bands.FirstOrDefault(b => b.Band.FoodTotal < b.Band.Members.Count * 0.5 && b.Band.Members.Any(m => m.Reserve < 0.25) && (region.Clock.Day - b.LastBountyDay >= 90));
                 if (acuteCamp != null)
                 {
                     region.CastBounty((int)acuteCamp.Band.CampX, (int)acuteCamp.Band.CampY, animals: region.Clock.Season == Season.Winter);
+                    acuteCamp.LastBountyDay = region.Clock.Day;
                 }
             }
 
-            // 4. Heal directly if someone is dying of sickness and Heal is unlocked
-            if (region.Favor >= 50)
+            // 4. Heal directly if someone is dying of sickness and Heal is unlocked (large act: rare)
+            if (region.Favor >= 65)
             {
                 var dying = region.People.FirstOrDefault(p => p.Alive && p.Illness != null && p.Health < 0.35 && region.CanCastHeal(p));
                 if (dying != null)
@@ -286,8 +294,8 @@ namespace Anthro.Sim
                 }
             }
 
-            // 5. Blessings sparingly (once every ~12 years = 4320 days)
-            if (region.Favor >= 45 && region.Clock.Day % 4320 == 0 && region.Clock.Hour == 12)
+            // 5. Blessings sparingly (large act: once every ~12 years = 4320 days)
+            if (region.Favor >= 55 && region.Clock.Day % 4320 == 0 && region.Clock.Hour == 12)
             {
                 var mother = region.People.FirstOrDefault(p => p.Alive && p.Sex == Sex.Female && p.Spouses.Count > 0 && !p.BlessedNextBirth && p.AgeYears(region.Clock) >= 18 && p.AgeYears(region.Clock) <= 32);
                 if (mother != null)

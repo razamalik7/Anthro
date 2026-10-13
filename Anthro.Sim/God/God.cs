@@ -48,6 +48,7 @@ namespace Anthro.Sim
 
         public long LastHealDay = -99999;
         public long LastLightningDay = -99999;
+        public long LastWeatherDay = -99999;
 
         // Favor audit tracking (T10 A1)
         public double FavorEarnedPrayer { get; set; }
