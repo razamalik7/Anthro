@@ -717,6 +717,35 @@ namespace Anthro.Sim
             // Laying the dead to rest eases the grief of those left (less of it turns to discontent).
             if (Band.AnyoneKnows("burial.cover"))
                 foreach (var m in Band.Members) m.Discontent *= Band.AnyoneKnows("burial.goods") ? 0.9 : 0.95;
+
+            // B3 (owner decision 2026-10-12): Grave goods left with dead when burial.rites is known.
+            // A witnessed gift to the unseen: if good things follow, it can teach god:offer like any other offering.
+            if (!Off("god") && !Off("offer") && (Band.AnyoneKnows("burial.rites") || Band.AnyoneKnows("burial.goods")))
+            {
+                var adults = Band.Members.Where(m => m.IsAdult(Clock)).ToList();
+                var giver = adults.OrderByDescending(m => m.IsKin(p) ? 2 : (m.Spouses.Contains(p) ? 3 : 1)).FirstOrDefault();
+                if (giver != null)
+                {
+                    var h = HomeOf(giver) ?? HomeOf(p);
+                    double giftAmount = 0.0;
+                    if (h != null && h.Food.Total >= 0.5)
+                    {
+                        giftAmount = h.Food.Take(Math.Min(1.0, h.Food.Total), out _);
+                    }
+                    else if (Band.Materials.Tools >= 1)
+                    {
+                        Band.Materials.Tools -= 1;
+                        giftAmount = 1.0;
+                    }
+
+                    if (giftAmount > 0.0)
+                    {
+                        Region.OfferingsFromGraveGoodsCount++;
+                        HappenHere(new People.Deed { Day = Clock.Day, Actor = giver, Act = People.Act.Offer, Amount = giftAmount, Target = p, Hearth = h });
+                        Chronicle.Write(Clock, Importance.Detail, $"{giver.Name} left grave goods with {p.Name}.");
+                    }
+                }
+            }
             LeaveHousehold(p);
             Band.Members.Remove(p);
             Band.Dead.Add(p);

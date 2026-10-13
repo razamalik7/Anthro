@@ -329,6 +329,14 @@ namespace Anthro.Sim.Activities
                 P.AppeasementDread = P.Dread;
             }
 
+            var openPrayer = sim.Region.ActivePrayers.FirstOrDefault(pr => pr.Asker == P && !pr.Resolved);
+            if (openPrayer != null && !openPrayer.HasOffering)
+            {
+                openPrayer.HasOffering = true;
+                openPrayer.OfferingDay = sim.Clock.Day;
+                sim.Region.OfferingsFromPleaCount++;
+            }
+
             sim.Chronicle.Write(sim.Clock, Anthro.Sim.Core.Importance.Detail, $"{P.Name} held an offering feast of {actual:F1} rations ({burned:F1} burned for the god).");
             sim.Region.GodEvents.Add(new GodEvent(sim.Clock.Tick, "Offer", $"{P.Name} held an offering feast ({burned:F1} burned, +{gain:F1} favor)", (int)sim.Band.CampX, (int)sim.Band.CampY));
             

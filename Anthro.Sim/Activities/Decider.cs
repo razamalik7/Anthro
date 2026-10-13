@@ -470,16 +470,22 @@ namespace Anthro.Sim.Activities
             }
 
             // Offer to the god: give up food/goods at a sacred spot or hearth
-            // Value = belief * Felt(learned return) * scale; sized by giver's means.
-            // Gratitude (kind) and dread (cruel) scale that learned value (higher stakes), never add to it.
-            // With no learned return, nobody offers, whatever the god's temper.
-            if (!Simulation.Off("god") && !Simulation.Off("offer") && maturity > 0.6 && Simulation.AtCamp(p) && home.Food.Total >= 2.0 && home.DaysOfFood >= 2.0)
+            // Path 1: Learned offering habit (value = belief * Felt(learned return) * scale; sized by means).
+            // Path 2: Escalated plea (B2 owner decision 2026-10-12): When a prayer is open, the need is desperate
+            //         and the plea is going unanswered, the person adds a gift to the plea.
+            //         Value = desperation * belief, an improvisation bargaining with the unseen.
+            if (!Simulation.Off("god") && !Simulation.Off("offer") && maturity > 0.6 && Simulation.AtCamp(p) && home.Food.Total >= 0.5)
             {
                 double real = Simulation.GodReal(p);
                 if (real > 0.05)
                 {
+                    double offerScore = 0.0;
+                    double offerAmount = 0.0;
+                    Prayer? escalatedPrayer = null;
+
+                    // Path 1: Learned offering habit
                     double learned = Simulation.GodOffer(p);
-                    if (learned > 0.0)
+                    if (learned > 0.0 && home.Food.Total >= 2.0 && home.DaysOfFood >= 2.0)
                     {
                         double feltReturn = Simulation.Felt(learned);
                         double kind = Simulation.GodKind(p);
@@ -489,12 +495,48 @@ namespace Anthro.Sim.Activities
                         else if (kind < 0)
                             scale += Math.Abs(kind) * p.W(Drive.Safety);
 
-                        double offerScore = real * feltReturn * scale * (home.DaysOfFood > 4.0 ? 1.0 : 0.5);
-                        if (offerScore > 0.05)
+                        offerScore = real * feltReturn * scale * (home.DaysOfFood > 4.0 ? 1.0 : 0.5);
+                        offerAmount = Math.Min(2.0, home.Food.Total * 0.15);
+                    }
+
+                    // Path 2: Escalated plea (B2)
+                    Prayer? openPrayer = sim.Region.ActivePrayers.FirstOrDefault(pr => pr.Asker == p && !pr.Resolved);
+                    if (openPrayer != null && sim.Clock.Day > openPrayer.StartDay)
+                    {
+                        double desperation = 0.0;
+                        if (openPrayer.Need == PrayerNeed.Hunger)
+                            desperation = (1.0 - p.Satiety) * Math.Max(0.5, 1.0 - home.Food.Total / 4.0);
+                        else if (openPrayer.Need == PrayerNeed.Sickness)
+                            desperation = (openPrayer.SickTarget ?? p).Sickness;
+                        else if (openPrayer.Need == PrayerNeed.Danger)
+                            desperation = p.Injury;
+                        else
+                            desperation = 0.5;
+
+                        if (desperation > 0.35)
                         {
-                            double offerAmount = Math.Min(2.0, home.Food.Total * 0.15);
-                            options.Add(new Option(Verb.Offer, offerScore, () => new Offer(p, offerAmount)));
+                            double escalatedScore = desperation * real * (0.6 + p.M(MindTrait.Credulity) * 0.4);
+                            if (escalatedScore > offerScore)
+                            {
+                                offerScore = escalatedScore;
+                                offerAmount = Math.Min(1.0, Math.Max(0.2, home.Food.Total * 0.15));
+                                escalatedPrayer = openPrayer;
+                            }
                         }
+                    }
+
+                    if (offerScore > 0.05 && offerAmount > 0.0)
+                    {
+                        options.Add(new Option(Verb.Offer, offerScore, () =>
+                        {
+                            if (escalatedPrayer != null && !escalatedPrayer.Resolved)
+                            {
+                                escalatedPrayer.HasOffering = true;
+                                escalatedPrayer.OfferingDay = sim.Clock.Day;
+                                sim.Region.OfferingsFromPleaCount++;
+                            }
+                            return new Offer(p, offerAmount);
+                        }));
                     }
                 }
             }

@@ -969,6 +969,121 @@ public class SimulationTests
         Assert.True(offerAt30 < 0.8, "Expected offer belief to fade significantly by day 30");
         Assert.True(offerAt50 < offerAt30, $"Expected offer belief to continue fading between day 30 and 50 without any 14-day cutoff (day30={offerAt30:F3}, day50={offerAt50:F3})");
     }
+
+    [Fact]
+    public void B1_SharingTeachesGenerosityNotOffering()
+    {
+        var region = Region.Create(19);
+        var sim = region.Founders;
+        var giver = sim.Band.Members[0];
+        var receiver = sim.Band.Members[1];
+        var witness = sim.Band.Members.First(m => m != giver && m != receiver && sim.Grown(m));
+        var home = sim.HomeOf(giver);
+
+        giver.Expect.Absorb(Simulation.GodRealTopic, 0.8, 1.0, 0.0);
+        witness.Expect.Absorb(Simulation.GodRealTopic, 0.8, 1.0, 0.0);
+
+        // Record a sharing deed (Act.Give to hearth)
+        var deed = new Deed { Day = sim.Clock.Day, Actor = giver, Act = Act.Give, Target = receiver, Hearth = home, Amount = 5.0 };
+        sim.HappenHere(deed);
+        witness.Deeds.Add(new Remembered(deed, true));
+
+        // Striking divine event occurs
+        region.InterpretStrikingEvent((int)sim.Band.CampX, (int)sim.Band.CampY, isGood: true, "StrikingTest");
+
+        // Witness should learn god:give ("the god loves generosity"), NOT god:offer
+        string giveTopic = Simulation.GodActTopic(Act.Give);
+        double giveExpect = witness.Expect.Get(giveTopic, 0.0);
+        double offerExpect = witness.Expect.Get(Simulation.GodOfferTopic, 0.0);
+
+        Assert.True(giveExpect > 0.0, $"Expected god:give to rise on witnessed sharing deed followed by sign, got {giveExpect:F3}");
+        Assert.Equal(0.0, offerExpect);
+    }
+
+    [Fact]
+    public void B2_EscalatedPleaWithOfferingCreditsGodOfferOnRelief()
+    {
+        var region = Region.Create(23);
+        var sim = region.Founders;
+        var asker = sim.Band.Members.First(m => sim.Grown(m));
+        var home = sim.HomeOf(asker);
+        home.Food.AddMeat(2.0);
+
+        asker.Expect.Absorb(Simulation.GodRealTopic, 0.8, 1.0, 0.0);
+        asker.Expect.Absorb(Simulation.GodOfferTopic, 0.0, 1.0, 0.0);
+
+        // Open prayer for hunger
+        var prayer = region.AddPrayer(asker, PrayerNeed.Hunger, (int)sim.Band.CampX, (int)sim.Band.CampY);
+        Assert.NotNull(prayer);
+
+        // Advance 2 days so prayer is going unanswered
+        for (int h = 0; h < SimClock.HoursPerDay * 2; h++) sim.Clock.Advance();
+        asker.Satiety = 0.2; // Desperate need
+
+        // Decider should generate Verb.Offer option via escalated plea
+        var options = Anthro.Sim.Activities.Decider.Options(sim, asker);
+        Assert.True(options.Any(o => o.Verb == Anthro.Sim.Activities.Verb.Offer), "Expected Verb.Offer option for escalated plea");
+        var offerOpt = options.First(o => o.Verb == Anthro.Sim.Activities.Verb.Offer);
+
+        // Perform the escalated offering
+        var act = offerOpt.Make();
+        act.Hour(sim);
+        Assert.True(prayer.HasOffering, "Prayer should be tagged with HasOffering");
+
+        // Relief follows: prayer is answered
+        asker.Satiety = 0.9;
+        region.ResolvePrayer(prayer, true, surprise: 0.8);
+
+        // Petitioner learned god:offer through outcome learning
+        double learnedOffer = asker.Expect.Get(Simulation.GodOfferTopic, 0.0);
+        Assert.True(learnedOffer > 0.0, $"Expected god:offer to rise on answered escalated plea, got {learnedOffer:F3}");
+    }
+
+    [Fact]
+    public void B3_GraveGoodsWithBurialRitesLeavesOfferDeed()
+    {
+        var region = Region.Create(27);
+        var sim = region.Founders;
+        var person = sim.Band.Members.First(m => sim.Grown(m));
+        var home = sim.HomeOf(person);
+        home.Food.AddMeat(5.0);
+
+        // Grant burial.rites
+        person.Knows.Add("burial.rites");
+
+        int goodsCountBefore = region.OfferingsFromGraveGoodsCount;
+        sim.Kill(person, "old age");
+
+        Assert.Equal(goodsCountBefore + 1, region.OfferingsFromGraveGoodsCount);
+        // Verify an Act.Offer deed was recorded in the camp among adult kin
+        Assert.True(sim.Band.Members.Any(m => m.Deeds.Any(rem => rem.Deed.Act == Act.Offer && rem.Deed.Target == person)) ||
+                    sim.Band.Dead.Any(m => m.OwnDeeds.Any(rem => rem.Deed.Act == Act.Offer && rem.Deed.Target == person)) ||
+                    sim.Band.Members.Any(m => m.OwnDeeds.Any(rem => rem.Deed.Act == Act.Offer && rem.Deed.Target == person)));
+    }
+
+    [Fact]
+    public void B4_CulturalSeedSeedsGodOfferFromGodRng()
+    {
+        // Sample 40 distinct regions to verify cultural variation in seeded god:offer
+        int worldsWithSeed = 0;
+        int worldsWithoutSeed = 0;
+
+        for (ulong s = 100; s < 140; s++)
+        {
+            var region = Region.Create(s);
+            var sim = region.Founders;
+            double avgOffer = sim.Band.Members.Where(m => sim.Grown(m)).Average(m => m.Expect.Get(Simulation.GodOfferTopic, 0.0));
+            if (avgOffer > 0.0)
+                worldsWithSeed++;
+            else
+                worldsWithoutSeed++;
+        }
+
+        // Most peoples (majority) should start with none (0.0); some should start with weak habit
+        Assert.True(worldsWithoutSeed > worldsWithSeed, $"Expected majority with none, got {worldsWithoutSeed} none vs {worldsWithSeed} with seed");
+        Assert.True(worldsWithSeed > 0, $"Expected some worlds to have seeded offering habit, got {worldsWithSeed}");
+    }
 }
+
 
 

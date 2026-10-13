@@ -32,6 +32,8 @@ namespace Anthro.Sim
         public double InitialSeverity { get; set; }
         public long LastSignDay { get; set; } = -1;
         public long LastRefusalDay { get; set; } = -1;
+        public bool HasOffering { get; set; }
+        public long OfferingDay { get; set; } = -1;
 
         public Prayer(int id, Person asker, PrayerNeed need, int campX, int campY, long startDay, Person? sickTarget = null)
         {
@@ -218,6 +220,11 @@ namespace Anthro.Sim
                 ActivePrayers.Remove(p);
                 ResolvedPrayers.Add(p);
                 if (ResolvedPrayers.Count > 500) ResolvedPrayers.RemoveAt(0);
+                if (p.HasOffering && p.Asker.Health > 0)
+                {
+                    double cred = p.Asker.M(MindTrait.Credulity);
+                    p.Asker.Expect.Absorb(Simulation.GodOfferTopic, -1.0, 0.15 * (0.4 + cred * 0.8), p.Asker.Expect.Get(Simulation.GodOfferTopic, 0.0));
+                }
                 GodEvents.Add(new GodEvent(Clock.Tick, "PrayerFaded", $"Plea by {p.Asker.Name} for {p.Need} was given up", p.CampX, p.CampY));
             }
 
@@ -252,6 +259,25 @@ namespace Anthro.Sim
                 p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.25 * surprise, Simulation.GodAnswers(p.Asker));
                 p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.20 * surprise, Simulation.GodReal(p.Asker));
 
+                // B2: Escalated plea that was answered credits god:offer
+                if (p.HasOffering)
+                {
+                    double cred = p.Asker.M(MindTrait.Credulity);
+                    double real = Simulation.GodReal(p.Asker);
+                    double weight = 0.20 * (0.4 + cred * 0.8) * Math.Max(0.2, real);
+                    p.Asker.Expect.Absorb(Simulation.GodOfferTopic, 1.0, weight, p.Asker.Expect.Get(Simulation.GodOfferTopic, 0.0));
+
+                    if (band != null)
+                    {
+                        foreach (var w in band.Band.Members.Where(m => m != p.Asker && band.Grown(m)))
+                        {
+                            double wCred = w.M(MindTrait.Credulity);
+                            double wReal = Simulation.GodReal(w);
+                            w.Expect.Absorb(Simulation.GodOfferTopic, 1.0, 0.10 * (0.4 + wCred * 0.8) * Math.Max(0.2, wReal), w.Expect.Get(Simulation.GodOfferTopic, 0.0));
+                        }
+                    }
+                }
+
                 GodEvents.Add(new GodEvent(Clock.Tick, "PrayerAnswered", $"Plea by {p.Asker.Name} for {p.Need} was met (surprise: {surprise:F2})", p.CampX, p.CampY));
                 
                 if (surprise > 0.5) InterpretStrikingEvent(p.CampX, p.CampY, isGood: true, "PrayerAnswered");
@@ -280,6 +306,11 @@ namespace Anthro.Sim
                 {
                     p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.15, Simulation.GodAnswers(p.Asker));
                     p.Asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, 0.05, Simulation.GodReal(p.Asker));
+                    if (p.HasOffering)
+                    {
+                        double cred = p.Asker.M(MindTrait.Credulity);
+                        p.Asker.Expect.Absorb(Simulation.GodOfferTopic, -1.0, 0.15 * (0.4 + cred * 0.8), p.Asker.Expect.Get(Simulation.GodOfferTopic, 0.0));
+                    }
                 }
                 GodEvents.Add(new GodEvent(Clock.Tick, "PrayerFailed", $"Plea by {p.Asker.Name} for {p.Need} failed", p.CampX, p.CampY));
 

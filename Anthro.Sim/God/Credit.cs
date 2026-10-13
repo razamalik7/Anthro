@@ -188,8 +188,9 @@ namespace Anthro.Sim
 
                             witness.Expect.Absorb(topic, target, weight, current);
 
-                            // If the deed was giving food to the hearth, or an offering, teach/reinforce god:offer
-                            if (deed.Act == Act.Offer || (deed.Act == Act.Give && deed.Hearth != null))
+                            // B1 (owner decision 2026-10-12): Sharing teaches generosity (god:give), not offering.
+                            // Only dedicated offerings (Act.Offer, including grave goods) teach/reinforce god:offer.
+                            if (deed.Act == Act.Offer)
                             {
                                 double curOffer = witness.Expect.Get(Simulation.GodOfferTopic, 0.0);
                                 witness.Expect.Absorb(Simulation.GodOfferTopic, target, weight, curOffer);

@@ -45,6 +45,20 @@ namespace Anthro.Sim
                 p.Expect.Absorb(GodAnswersTopic, Inheritance.Clamp01(baseAnswers + rng.Normal(0, 0.02)), 1, 0);
                 p.Expect.Absorb(GodKindTopic, Math.Max(-1, Math.Min(1, baseKind + rng.Normal(0, 0.05))), 1, 0);
             }
+
+            // B4 (owner decision 2026-10-12): Seed god:offer per people with small variation
+            // (some start with a weak offering habit, most with none), the way customs are seeded in Customs.SeedCustoms.
+            // From GodRng.
+            double baseOffer = rng.Range(0.0, 1.0) < 0.25 ? rng.Range(0.05, 0.15) : 0.0;
+            if (baseOffer > 0.0)
+            {
+                Region.OfferingsFromSeedCount++;
+                foreach (var p in group)
+                {
+                    double indOffer = Math.Max(0.0, baseOffer + rng.Normal(0, 0.02));
+                    p.Expect.Absorb(GodOfferTopic, indOffer, 1, 0);
+                }
+            }
         }
 
         /// <summary>

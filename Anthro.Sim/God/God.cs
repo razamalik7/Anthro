@@ -60,6 +60,11 @@ namespace Anthro.Sim
         public long FirstBrokeDay { get; set; } = -1;
         public long DaysTotal { get; set; }
 
+        // Offering origin tracking (T10 Batch B)
+        public int OfferingsFromSeedCount { get; set; }
+        public int OfferingsFromPleaCount { get; set; }
+        public int OfferingsFromGraveGoodsCount { get; set; }
+
         public bool SpendFavor(double amount)
         {
             if (GodFaded || amount <= 0) return false;
