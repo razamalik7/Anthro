@@ -33,9 +33,9 @@ all_batches = [
     ("kind_noheal", 41, 60, ["ANTHRO_GOD=kind", "ANTHRO_OFF=heal"]),
     ("kind_noheal2", 61, 80, ["ANTHRO_GOD=kind", "ANTHRO_OFF=heal"]),
     ("cruel_nolightning", 41, 60, ["ANTHRO_GOD=cruel", "ANTHRO_OFF=lightning"]),
-    ("cruel_nolightning2", 61, 80, ["ANTHRO_GOD=cruel", "ANTHRO_OFF=lightning"]),
-    ("skilful_noheal", 41, 60, ["ANTHRO_GOD=skilful", "ANTHRO_OFF=heal"]),
-    ("skilful_noheal2", 61, 80, ["ANTHRO_GOD=skilful", "ANTHRO_OFF=heal"]),
+    # T11 God goes quiet
+    ("quiet", 41, 60, ["ANTHRO_GOD=quiet", "ANTHRO_OFF="]),
+    ("quiet2", 61, 80, ["ANTHRO_GOD=quiet", "ANTHRO_OFF="]),
 ]
 
 def run_world(args):

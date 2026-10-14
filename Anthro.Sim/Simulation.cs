@@ -30,6 +30,8 @@ namespace Anthro.Sim
         public int Refusals, Thefts, Fights, Raids;
         public int PrayersAsked, PrayersResolvedGood, PrayersResolvedBad;
         public double FavorGain, FoodOffered;
+        public readonly Dictionary<Core.Season, int> DevotionBySeason = new Dictionary<Core.Season, int>();
+        public int DevotionFed, DevotionHungry;
         public readonly Dictionary<Activities.Verb, long> Hours = new Dictionary<Activities.Verb, long>();
         internal int Samples;
         public readonly Dictionary<string, int> Deaths = new Dictionary<string, int>();

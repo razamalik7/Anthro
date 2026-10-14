@@ -16,6 +16,7 @@ namespace Anthro.Sim
         public const string GodAnswersTopic = "god:answers";
         public const string GodKindTopic = "god:kind";
         public const string GodOfferTopic = "god:offer";
+        public const string GodThankTopic = "god:thank";
 
         public static string GodActTopic(string act) => $"god:{act.ToLowerInvariant()}";
         public static string GodActTopic(Act act) => $"god:{act.ToString().ToLowerInvariant()}";
@@ -24,6 +25,7 @@ namespace Anthro.Sim
         public static double GodAnswers(Person p) => p.Expect.Get(GodAnswersTopic, 0.1);
         public static double GodKind(Person p) => p.Expect.Get(GodKindTopic, 0.0);
         public static double GodOffer(Person p) => GodAct(p, Act.Offer);
+        public static double GodThank(Person p) => p.Expect.Get(GodThankTopic, 0.0);
         public static double GodAct(Person p, string act) => p.Expect.Get(GodActTopic(act), 0.0);
         public static double GodAct(Person p, Act act) => p.Expect.Get(GodActTopic(act), 0.0);
         public static bool IsBeliever(Person p) => GodReal(p) > 0.5;
@@ -59,6 +61,13 @@ namespace Anthro.Sim
                     p.Expect.Absorb(GodOfferTopic, indOffer, 1, 0);
                 }
             }
+            // D1 (owner decision 2026-10-13): Seed god:thank per people with variation
+            double baseThank = rng.Range(0.0, 1.0) < 0.35 ? rng.Range(0.04, 0.12) : 0.01;
+            foreach (var p in group)
+            {
+                double indThank = Math.Max(0.0, baseThank + rng.Normal(0, 0.02));
+                p.Expect.Absorb(GodThankTopic, indThank, 1, 0);
+            }
         }
 
         /// <summary>
@@ -84,6 +93,13 @@ namespace Anthro.Sim
                     decay = 0.01;
 
                 p.Expect.Absorb(GodOfferTopic, 0.0, decay, offerBelief);
+            }
+
+            // D1: Everyday devotion decays slowly if unfed by signs/fortune
+            double thankBelief = GodThank(p);
+            if (thankBelief > 0)
+            {
+                p.Expect.Absorb(GodThankTopic, 0.0, 0.005, thankBelief);
             }
 
             // Learning from relief (T10 A2): dread fades continuously; easing dread credits appeasement

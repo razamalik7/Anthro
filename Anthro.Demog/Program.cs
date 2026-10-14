@@ -76,7 +76,7 @@ region.YearEnded += all =>
     Console.WriteLine($"    hours: {string.Join(", ", hours.OrderByDescending(h => h.Value).Select(h => $"{h.Key} {h.Value / (double)Math.Max(1, adults) / SimClock.DaysPerYear:F2}"))} (per adult per day)");
     var known = region.People.SelectMany(p => p.Knows).GroupBy(k => k).Where(g => web.Stages.TryGetValue(g.Key, out var st) && !st.Known).Select(g => $"{g.Key} {g.Count() * 100 / Math.Max(1, pop)}%");
     if (region.Clock.Year % 10 == 0) Console.WriteLine($"    known: {string.Join(", ", known)}");
-    if (region.Clock.Year % 10 == 0 || region.Clock.Year == 1)
+    if (region.Clock.Year % 10 == 0 || region.Clock.Year == 1 || (!Simulation.Off("god") && region.Clock.Year == 25))
         foreach (var t in region.LivingTribes)
         {
             var ms = region.CampsOf(t).SelectMany(c => c.Band.Members).Where(m => (now0 - m.BirthDay) / SimClock.DaysPerYear >= 15).ToList();
@@ -84,7 +84,35 @@ region.YearEnded += all =>
             double A(string k, double f) => ms.Average(m => m.Expect.Get(k, f));
             string godCulture = Simulation.Off("god") ? "" : $" | belief {ms.Count(Simulation.IsBeliever)}/{ms.Count} mean {ms.Average(Simulation.GodReal):F2} answers {ms.Average(Simulation.GodAnswers):F2} kind {ms.Average(Simulation.GodKind):F2} | god acts take {A("god:take", 0):F2} give {A("god:give", 0):F2} attack {A("god:attack", 0):F2} offer {A("god:offer", 0):F2}";
             Console.WriteLine($"    culture [{t.Name}]: violence kin {A("bound:kin", 0.8):F2} friend {A("bound:friend", 0.8):F2} stranger {A("bound:neutral", 0.8):F2} outsider {A("bound:outsider", 0.8):F2} | honour {A("norm:honour", 0):F2} peacemaking {A("norm:peacemaking", 0.5):F2} | rationing {A("norm:rationing", 0.6):F2} demand {A("norm:demand", 0.3):F2} elders {A("norm:elders", 1):F2} hunting {A("norm:hunting", 0.4):F2} plural {A("wed:more", 0):F2}" + godCulture);
+            if (!Simulation.Off("god"))
+            {
+                int skep = ms.Count(m => Simulation.GodReal(m) < 0.3);
+                int open = ms.Count(m => Simulation.GodReal(m) >= 0.3 && Simulation.GodReal(m) < 0.6);
+                int bel = ms.Count(m => Simulation.GodReal(m) >= 0.6 && Simulation.GodReal(m) < 0.8);
+                int dev = ms.Count(m => Simulation.GodReal(m) >= 0.8);
+                double Sd(string k) { double avg = ms.Average(m => m.Expect.Get(k, 0.0)); return Math.Sqrt(ms.Average(m => Math.Pow(m.Expect.Get(k, 0.0) - avg, 2))); }
+                var camps = region.CampsOf(t).Where(c => c.Band.Members.Count >= 5).ToList();
+                double campSd = 0.0;
+                if (camps.Count > 1)
+                {
+                    var campMeans = camps.Select(c => c.Band.Members.Where(m => (now0 - m.BirthDay) / SimClock.DaysPerYear >= 15).Select(Simulation.GodReal).DefaultIfEmpty(0.2).Average()).ToList();
+                    double avgC = campMeans.Average();
+                    campSd = Math.Sqrt(campMeans.Average(cm => Math.Pow(cm - avgC, 2)));
+                }
+                Console.WriteLine($"    belief_bands [{t.Name}] Y{region.Clock.Year}: skeptic {skep * 100.0 / ms.Count:F1}% open {open * 100.0 / ms.Count:F1}% believer {bel * 100.0 / ms.Count:F1}% devout {dev * 100.0 / ms.Count:F1}% | god spread take {Sd("god:take"):F2} give {Sd("god:give"):F2} attack {Sd("god:attack"):F2} offer {Sd("god:offer"):F2} | between_camp_sd {campSd:F2}");
+            }
         }
+    if (!Simulation.Off("god") && (region.Clock.Year % 10 == 0 || region.Clock.Year == 1 || region.Clock.Year == 25))
+    {
+        int springDev = all.Sum(a => a.year.DevotionBySeason.TryGetValue(Season.Spring, out var v) ? v : 0);
+        int summerDev = all.Sum(a => a.year.DevotionBySeason.TryGetValue(Season.Summer, out var v) ? v : 0);
+        int autumnDev = all.Sum(a => a.year.DevotionBySeason.TryGetValue(Season.Autumn, out var v) ? v : 0);
+        int winterDev = all.Sum(a => a.year.DevotionBySeason.TryGetValue(Season.Winter, out var v) ? v : 0);
+        int fedDev = all.Sum(a => a.year.DevotionFed);
+        int hungryDev = all.Sum(a => a.year.DevotionHungry);
+        double ad = Math.Max(1.0, adults);
+        Console.WriteLine($"    devotion Y{region.Clock.Year}: spring {springDev / ad:F2} summer {summerDev / ad:F2} autumn {autumnDev / ad:F2} winter {winterDev / ad:F2} | fed {fedDev / ad:F2} hungry {hungryDev / ad:F2} (per adult/yr)");
+    }
     Console.WriteLine($"    seasons fed (mean/low10%): {string.Join(" ", seasonFed.Select(kv => $"{kv.Key} {kv.Value.Average():F2}/{kv.Value.OrderBy(x => x).ElementAt(kv.Value.Count / 10):F2}"))}");
     seasonFed.Clear();
     string godY = Simulation.Off("god") ? "" : $" | prayers {all.Sum(a => a.year.PrayersAsked)}/{all.Sum(a => a.year.PrayersResolvedGood)}/{all.Sum(a => a.year.PrayersResolvedBad)} offered {all.Sum(a => a.year.FoodOffered):F1} favor {region.Favor:F1} rep {region.Reputation:F1}";

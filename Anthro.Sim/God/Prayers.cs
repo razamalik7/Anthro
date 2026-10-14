@@ -7,7 +7,7 @@ using Anthro.Sim.World;
 
 namespace Anthro.Sim
 {
-    public enum PrayerNeed { Hunger, Sickness, Danger, Grief }
+    public enum PrayerNeed { Hunger, Sickness, Danger, Grief, Thanks }
 
     /// <summary>
     /// A prayer request that stays open while the underlying need lasts.
@@ -157,8 +157,20 @@ namespace Anthro.Sim
                     if ((deathInFamily || hardFrost) && prayer.LastRefusalDay != Clock.Day)
                     {
                         prayer.LastRefusalDay = Clock.Day;
-                        asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.08, Simulation.GodAnswers(asker));
-                        asker.Expect.Absorb(Simulation.GodKindTopic, -1.0, 0.06, Simulation.GodKind(asker));
+                        if (deathInFamily)
+                        {
+                            // D3 (owner decision 2026-10-13): Personal shock: death of a family member during an unanswered plea breaks faith
+                            asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.35, Simulation.GodAnswers(asker));
+                            asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, 0.25, Simulation.GodReal(asker));
+                            asker.Expect.Absorb(Simulation.GodKindTopic, -1.0, 0.25, Simulation.GodKind(asker));
+                            if (Clock.Day - asker.LastThanksDay <= 7)
+                                asker.Expect.Absorb(Simulation.GodThankTopic, -1.0, 0.25, Simulation.GodThank(asker));
+                        }
+                        else
+                        {
+                            asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.08, Simulation.GodAnswers(asker));
+                            asker.Expect.Absorb(Simulation.GodKindTopic, -1.0, 0.06, Simulation.GodKind(asker));
+                        }
                         GodEvents.Add(new GodEvent(Clock.Tick, "PrayerRefusal", $"{asker.Name} felt refused while their plea for {prayer.Need} was open", prayer.CampX, prayer.CampY));
                     }
                 }
@@ -182,6 +194,15 @@ namespace Anthro.Sim
                 {
                     if (target.Health <= 0)
                     {
+                        if (asker.Health > 0)
+                        {
+                            // D3: Personal shock: sick target died during plea breaks faith
+                            asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.40, Simulation.GodAnswers(asker));
+                            asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, 0.30, Simulation.GodReal(asker));
+                            asker.Expect.Absorb(Simulation.GodKindTopic, -1.0, 0.25, Simulation.GodKind(asker));
+                            if (Clock.Day - asker.LastThanksDay <= 7)
+                                asker.Expect.Absorb(Simulation.GodThankTopic, -1.0, 0.25, Simulation.GodThank(asker));
+                        }
                         toResolve.Add((prayer, false, 1.0));
                     }
                     else if (target.Sickness <= 0 && target.Health >= 0.7)
@@ -255,9 +276,15 @@ namespace Anthro.Sim
                     }
                 }
 
-                // Asker learns answered plea
-                p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.25 * surprise, Simulation.GodAnswers(p.Asker));
-                p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.20 * surprise, Simulation.GodReal(p.Asker));
+                // Asker learns answered plea (D3: dramatic answered plea can convert skeptics)
+                double convertWeight = surprise >= 0.7 ? 0.45 * surprise : 0.25 * surprise;
+                p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, convertWeight, Simulation.GodAnswers(p.Asker));
+                p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, convertWeight, Simulation.GodReal(p.Asker));
+                if (Clock.Day - p.Asker.LastThanksDay <= 7)
+                {
+                    double cred = p.Asker.M(MindTrait.Credulity);
+                    p.Asker.Expect.Absorb(Simulation.GodThankTopic, 1.0, 0.20 * surprise * (0.4 + cred * 0.8), Simulation.GodThank(p.Asker));
+                }
 
                 // B2: Escalated plea that was answered credits god:offer
                 if (p.HasOffering)
@@ -304,12 +331,16 @@ namespace Anthro.Sim
 
                 if (p.Asker.Health > 0)
                 {
-                    p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.15, Simulation.GodAnswers(p.Asker));
-                    p.Asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, 0.05, Simulation.GodReal(p.Asker));
+                    p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.25, Simulation.GodAnswers(p.Asker));
+                    p.Asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, 0.15, Simulation.GodReal(p.Asker));
+                    if (Clock.Day - p.Asker.LastThanksDay <= 7)
+                    {
+                        p.Asker.Expect.Absorb(Simulation.GodThankTopic, -1.0, 0.25, Simulation.GodThank(p.Asker));
+                    }
                     if (p.HasOffering)
                     {
                         double cred = p.Asker.M(MindTrait.Credulity);
-                        p.Asker.Expect.Absorb(Simulation.GodOfferTopic, -1.0, 0.15 * (0.4 + cred * 0.8), p.Asker.Expect.Get(Simulation.GodOfferTopic, 0.0));
+                        p.Asker.Expect.Absorb(Simulation.GodOfferTopic, -1.0, 0.20 * (0.4 + cred * 0.8), p.Asker.Expect.Get(Simulation.GodOfferTopic, 0.0));
                     }
                 }
                 GodEvents.Add(new GodEvent(Clock.Tick, "PrayerFailed", $"Plea by {p.Asker.Name} for {p.Need} failed", p.CampX, p.CampY));
@@ -335,12 +366,40 @@ namespace Anthro.Sim
         public void RegisterPrayer(Person p, PrayerNeed need, Person? target = null)
         {
             if (Off("god") || Off("pray")) return;
+            if (need == PrayerNeed.Thanks)
+            {
+                p.LastThanksDay = Clock.Day;
+                double real = GodReal(p);
+                double gain = 0.5 * real;
+                Region.FavorEarnedPrayer += gain;
+                Region.AddFavor(gain);
+                ThisYear.PrayersAsked++;
+                ThisYear.FavorGain += gain;
+
+                // Witnessed by camp members (D1)
+                foreach (var w in Band.Members.Where(m => m != p && Grown(m)))
+                {
+                    double wReal = GodReal(w);
+                    w.Expect.Absorb(Simulation.GodThankTopic, Simulation.GodThank(p), 0.02 * wReal, Simulation.GodThank(w));
+                }
+
+                Region.GodEvents.Add(new GodEvent(Clock.Tick, "Thanks", $"{p.Name} gave thanks to the god (+{gain:F1} favor)", (int)Band.CampX, (int)Band.CampY));
+                Chronicle.Write(Clock, Importance.Detail, $"{p.Name} gave thanks to the god.");
+                var tSeason = Clock.Season;
+                ThisYear.DevotionBySeason[tSeason] = ThisYear.DevotionBySeason.TryGetValue(tSeason, out var tDv) ? tDv + 1 : 1;
+                if (p.Satiety >= 0.6) ThisYear.DevotionFed++; else ThisYear.DevotionHungry++;
+                return;
+            }
+
             Region.AddPrayer(p, need, (int)Band.CampX, (int)Band.CampY, target);
-            double gain = 1.0 * GodReal(p);
-            Region.FavorEarnedPrayer += gain;
-            Region.Favor = Math.Min(Region.FavorCap, Region.Favor + gain);
+            double gainPrayer = 1.0 * GodReal(p);
+            Region.FavorEarnedPrayer += gainPrayer;
+            Region.AddFavor(gainPrayer);
             ThisYear.PrayersAsked++;
-            ThisYear.FavorGain += gain;
+            ThisYear.FavorGain += gainPrayer;
+            var season = Clock.Season;
+            ThisYear.DevotionBySeason[season] = ThisYear.DevotionBySeason.TryGetValue(season, out var dv) ? dv + 1 : 1;
+            if (p.Satiety >= 0.6) ThisYear.DevotionFed++; else ThisYear.DevotionHungry++;
 
             if (!Off("relief") && p.Dread > 0.05)
             {

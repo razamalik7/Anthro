@@ -11,7 +11,8 @@ namespace Anthro.Sim
         Kind,
         Cruel,
         Random,
-        Skilful
+        Skilful,
+        Quiet
     }
 
     /// <summary>
@@ -22,6 +23,7 @@ namespace Anthro.Sim
     /// - Cruel: Ignores pleas for relief, displays terrifying omens and harshens winters, strikes lightning when unlocked.
     /// - Random: Capricious, mixed benevolence and wrath.
     /// - Skilful: Intervenes at the right moments (harsh winter mitigation, starving camp relief, theft omens, sparing blessings, heal).
+    /// - Quiet: Active skilful for 25 years, then idle for 25 years (T11 owner target).
     /// </summary>
     public static class BotGod
     {
@@ -37,6 +39,7 @@ namespace Anthro.Sim
             "cruel" => GodPolicy.Cruel,
             "random" => GodPolicy.Random,
             "skilful" or "skillful" => GodPolicy.Skilful,
+            "quiet" => GodPolicy.Quiet,
             _ => GodPolicy.None
         };
 
@@ -59,6 +62,10 @@ namespace Anthro.Sim
                     break;
                 case GodPolicy.Skilful:
                     StepSkilful(region);
+                    break;
+                case GodPolicy.Quiet:
+                    if (region.Clock.Year < 25)
+                        StepSkilful(region);
                     break;
             }
         }
@@ -204,8 +211,14 @@ namespace Anthro.Sim
         {
             if (Simulation.Off("skilful")) return;
 
-            // 1. An omen right after a witnessed theft (small act, 5 favor):
-            // Restores moral order and deters theft immediately when a theft occurs.
+            // 1. Small acts: theft omens & periodic signs scaled by faith stage (D4 owner decision 2026-10-13):
+            // - Stage 1 (new god, few believers): ~1 a month (~30 days).
+            // - Stage 2 (faithful band, believers >= 50%): ~weekly (~7 days).
+            int adults = region.People.Count(p => p.AgeYears(region.Clock) >= 15);
+            int believers = region.People.Count(Simulation.IsBeliever);
+            bool isFaithfulBand = adults >= 15 && (believers / (double)adults >= 0.5);
+            long omenInterval = isFaithfulBand ? 7 : 30;
+
             foreach (var b in region.Bands)
             {
                 if (region.Clock.Tick - b.LastWitnessedTheftTick <= 12)
@@ -213,8 +226,20 @@ namespace Anthro.Sim
                     if (region.Favor >= 5.0)
                     {
                         region.CastOmen((int)b.Band.CampX, (int)b.Band.CampY, "A low rumble of celestial anger shook the stolen hearth", isGood: false);
+                        region.LastOmenSignDay = region.Clock.Day;
                     }
                     b.LastWitnessedTheftTick = -99999;
+                }
+            }
+
+            // Proactive sign if god has been quiet for longer than the pacing interval
+            if (region.Clock.Hour == 12 && region.Clock.Day - region.LastOmenSignDay >= omenInterval && region.Favor >= 15.0)
+            {
+                var camp = region.Bands.FirstOrDefault(b => b.Band.Members.Any());
+                if (camp != null)
+                {
+                    region.CastOmen((int)camp.Band.CampX, (int)camp.Band.CampY, isFaithfulBand ? "A celestial blessing bathed the camp" : "A radiant glow illuminated the morning sky", isGood: true);
+                    region.LastOmenSignDay = region.Clock.Day;
                 }
             }
 

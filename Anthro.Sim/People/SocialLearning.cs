@@ -32,7 +32,15 @@ namespace Anthro.Sim.People
             {
                 var key = topics[rng.Range(0, topics.Count)];
                 double v = speaker.Expect.Get(key, 0);
-                listener.Expect.Absorb(key, v, weight, v);
+                double topicWeight = weight;
+                if (!Simulation.Off("god") && key.StartsWith("god:"))
+                {
+                    // D3 (owner decision 2026-10-13): The devout teach more strongly
+                    double real = speaker.Expect.Get("god:real", 0.2);
+                    topicWeight *= (0.3 + 1.2 * real);
+                    if (topicWeight > 0.5) topicWeight = 0.5;
+                }
+                listener.Expect.Absorb(key, v, topicWeight, v);
             }
         }
     }

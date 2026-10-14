@@ -41,7 +41,9 @@ namespace Anthro.Sim
 
         public double Favor { get; set; } = StartFavorPool;
         public double Reputation { get; set; } = 0.0;
-        public double FavorCapFactor { get; set; } = 10.0;
+        public double SustainableFavorFactor { get; set; } = 4.0;
+        public double FavorLeakRate { get; set; } = 0.02;
+        public double FavorCapFactor { get; set; } = 4.0;
         public bool GodFaded { get; set; }
         public int IgnoredEmbers { get; set; }
         public GodPolicy Policy { get; set; } = BotGod.PolicyFromEnv();
@@ -50,6 +52,7 @@ namespace Anthro.Sim
         public long LastLightningDay = -99999;
         public long LastWeatherDay = -99999;
         public long LastBlessedBirthDay = -99999;
+        public long LastOmenSignDay = -99999;
 
         // Favor audit tracking (T10 A1)
         public double FavorEarnedPrayer { get; set; }
@@ -66,6 +69,12 @@ namespace Anthro.Sim
         public int OfferingsFromPleaCount { get; set; }
         public int OfferingsFromGraveGoodsCount { get; set; }
 
+        public void AddFavor(double amount)
+        {
+            if (amount <= 0 || GodFaded) return;
+            Favor += amount;
+        }
+
         public bool SpendFavor(double amount)
         {
             if (GodFaded || amount <= 0) return false;
@@ -75,10 +84,12 @@ namespace Anthro.Sim
         }
 
         /// <summary>
-        /// Favor cap = Σ believers' god:real * k.
+        /// Sustainable favor baseline = Σ people's god:real * k (D2 owner decision 2026-10-13: option b).
         /// Retains at least StartFavorPool while belief is budding.
+        /// Favor above this level leaks away slowly daily instead of hard-clipping.
         /// </summary>
-        public double FavorCap => GodFaded ? 0.0 : Math.Max(StartFavorPool, People.Where(Simulation.IsBeliever).Sum(Simulation.GodReal) * FavorCapFactor);
+        public double SustainableFavor => GodFaded ? 0.0 : Math.Max(StartFavorPool, People.Sum(Simulation.GodReal) * SustainableFavorFactor);
+        public double FavorCap => SustainableFavor;
 
         public readonly List<GodEvent> GodEvents = new List<GodEvent>();
         readonly Queue<IGodCommand> _pendingGodCommands = new Queue<IGodCommand>();

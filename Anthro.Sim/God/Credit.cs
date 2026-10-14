@@ -73,10 +73,25 @@ namespace Anthro.Sim
                                 witness.Dread = Math.Min(1.0, witness.Dread + 0.6);
                                 witness.DreadPeak = Math.Max(witness.DreadPeak, witness.Dread);
                             }
+
+                            // D1 (owner decision 2026-10-13): A blow followed thanks -> weaken god:thank
+                            if (Clock.Day - witness.LastThanksDay <= 7)
+                            {
+                                double weight = 0.15 * (0.4 + cred * 0.8) * Math.Max(0.2, real);
+                                witness.Expect.Absorb(Simulation.GodThankTopic, -1.0, weight, Simulation.GodThank(witness));
+                            }
                         }
                         else
                         {
                             witness.Dread = Math.Max(0.0, witness.Dread - 0.4);
+
+                            // D1 (owner decision 2026-10-13): Good fortune followed thanks -> strengthen god:thank (weighted by surprise)
+                            if (Clock.Day - witness.LastThanksDay <= 7)
+                            {
+                                double surprise = regionWide ? 0.3 : 0.6;
+                                double weight = 0.15 * surprise * (0.4 + cred * 0.8) * Math.Max(0.2, real);
+                                witness.Expect.Absorb(Simulation.GodThankTopic, 1.0, weight, Simulation.GodThank(witness));
+                            }
                         }
                     }
 

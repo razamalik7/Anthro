@@ -469,6 +469,22 @@ namespace Anthro.Sim.Activities
                 }
             }
 
+            // Everyday devotion: thanksgiving in good/comfortable times (D1 owner decision 2026-10-13)
+            // Value = belief * learned return of thanking (god:thank)
+            if (!Simulation.Off("god") && !Simulation.Off("pray") && maturity > 0.3 && Simulation.AtCamp(p) && p.Satiety >= 0.5 && p.Health >= 0.6 && clock.Day != p.LastThanksDay)
+            {
+                double real = Simulation.GodReal(p);
+                double thankReturn = Simulation.GodThank(p);
+                if (real > 0.1 && thankReturn > 0.0)
+                {
+                    double thankScore = real * thankReturn * 0.5;
+                    if (thankScore > 0.02)
+                    {
+                        options.Add(new Option(Verb.Pray, thankScore, () => new Pray(p, PrayerNeed.Thanks)));
+                    }
+                }
+            }
+
             // Offer to the god: give up food/goods at a sacred spot or hearth
             // Path 1: Learned offering habit (value = belief * Felt(learned return) * scale; sized by means).
             // Path 2: Escalated plea (B2 owner decision 2026-10-12): When a prayer is open, the need is desperate

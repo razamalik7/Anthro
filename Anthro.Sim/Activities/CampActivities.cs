@@ -241,7 +241,7 @@ namespace Anthro.Sim.Activities
 
         public Pray(Person p, PrayerNeed need, Person? target = null) : base(p, 1)
         {
-            Step = "praying";
+            Step = need == PrayerNeed.Thanks ? "giving thanks" : "praying";
             _need = need;
             _target = target;
         }
@@ -319,9 +319,12 @@ namespace Anthro.Sim.Activities
             double gain = burned * real * 8.0 * dispositionFactor;
 
             sim.Region.FavorEarnedOffer += gain;
-            sim.Region.Favor = Math.Min(sim.Region.FavorCap, sim.Region.Favor + gain);
+            sim.Region.AddFavor(gain);
             sim.ThisYear.FavorGain += gain;
             sim.ThisYear.FoodOffered += burned;
+            var oSeason = sim.Clock.Season;
+            sim.ThisYear.DevotionBySeason[oSeason] = sim.ThisYear.DevotionBySeason.TryGetValue(oSeason, out var oDv) ? oDv + 1 : 1;
+            if (P.Satiety >= 0.6) sim.ThisYear.DevotionFed++; else sim.ThisYear.DevotionHungry++;
 
             if (!Simulation.Off("relief") && P.Dread > 0.05)
             {

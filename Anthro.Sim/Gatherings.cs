@@ -62,7 +62,7 @@ namespace Anthro.Sim
                 {
                     double riteFavor = believers.Sum(m => GodReal(m) * 2.5);
                     Region.FavorEarnedRite += riteFavor;
-                    Region.Favor = Math.Min(Region.FavorCap, Region.Favor + riteFavor);
+                    Region.AddFavor(riteFavor);
                     ThisYear.FavorGain += riteFavor;
                     foreach (var m in believers)
                         m.Expect.Absorb(GodRealTopic, 1.0, 0.04, GodReal(m));

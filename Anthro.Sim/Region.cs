@@ -164,6 +164,12 @@ namespace Anthro.Sim
             if (!Simulation.Off("god") && !GodFaded)
             {
                 DaysTotal++;
+                double sustainable = SustainableFavor;
+                if (Favor > sustainable)
+                {
+                    double excess = Favor - sustainable;
+                    Favor -= excess * FavorLeakRate;
+                }
                 if (Favor < 5.0)
                 {
                     DaysBroke++;
