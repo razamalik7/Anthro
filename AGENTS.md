@@ -1,5 +1,7 @@
 # Working on Anthro (for any AI agent)
 
+**New here? Read `docs/HANDOFF.md` first** (reading order, current state, the owner's standing preferences in `docs/agent-memory/`).
+
 Anthro is an anthropological / evolution god-sim. The simulation is plain C# (`Anthro.Sim`, netstandard2.1,
 C# 9, no Unity references) and runs headless; Unity comes later for presentation. Read `docs/PLANNING.md`
 (the vision), `docs/REFLECTION.md` (where we are vs the plan) and the tail of `docs/PROGRESS.md` (latest
@@ -7,9 +9,9 @@ state) before changing anything. Current work: **the god layer**, spec in `docs/
 `docs/PHASE1-TASKS.md`.
 
 ## Roles
-- **Claude (Opus)**: design decisions, specs, reviews. Budget-limited: hand it short reports, not logs.
-- **Implementer (Antigravity: Gemini Pro / Sonnet)**: one task at a time from `docs/PHASE1-TASKS.md`.
-- **Runner (Gemini Flash)**: builds, multi-world runs, extracting numbers into reports.
+- **Overseer / Architect (Antigravity: Argon / Claude Opus / Gemini Pro)**: design decisions, specs, reviewing reports against core rules, maintaining mathematical and anthropological rigor.
+- **Implementer (Antigravity)**: one task at a time from `docs/PHASE1-TASKS.md`, adhering to the non-negotiable design rules.
+- **Runner (Antigravity / Flash)**: builds, multi-world parallel pools, paired bootstrap CI extraction, regression checks.
 - **The owner** decides anything that changes how the world works or what people value.
 
 ## The design rules (non-negotiable)

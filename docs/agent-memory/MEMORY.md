@@ -1,0 +1,5 @@
+- [Anthro balance target](anthro-balance-target.md) — no god: humans persist but advance slowly, bands can die out; god speeds innovation, drama, survival
+- [Anthro design principles](anthro-design-principles.md) — emergent, data-grounded, disclose hand-set numbers, audit then talk
+- [Anthro overnight queue](anthro-overnight-queue.md) — state after 2026-10-07 overnight: built, final validation, next steps, gotchas
+- [Realism, not exactness](anthro-realism-not-exactness.md) — rates needn't match foragers; natural + understood + not hard-coded matters more
+- [Sim before god](anthro-sim-before-god.md) — god layer waits until the base sim passes its readiness checklist
