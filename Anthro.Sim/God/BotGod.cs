@@ -211,109 +211,91 @@ namespace Anthro.Sim
         {
             if (Simulation.Off("skilful")) return;
 
-            // 1. Small acts: theft omens & periodic signs scaled by faith stage (D4 owner decision 2026-10-13):
-            // - Stage 1 (new god, few believers): ~1 a month (~30 days).
-            // - Stage 2 (faithful band, believers >= 50%): ~weekly (~7 days).
-            int adults = region.People.Count(p => p.AgeYears(region.Clock) >= 15);
-            int believers = region.People.Count(Simulation.IsBeliever);
-            bool isFaithfulBand = adults >= 15 && (believers / (double)adults >= 0.5);
-            long omenInterval = isFaithfulBand ? 7 : 30;
+            var adults = region.People.Where(p => p.Alive && p.AgeYears(region.Clock) >= 15).ToList();
+            int adultCount = adults.Count;
+            int believers = adults.Count(Simulation.IsBeliever);
+            double meanReal = adultCount > 0 ? adults.Average(Simulation.GodReal) : 0.20;
+            bool isFaithfulBand = adultCount >= 15 && (believers / (double)adultCount >= 0.5);
 
-            foreach (var b in region.Bands)
-            {
-                if (region.Clock.Tick - b.LastWitnessedTheftTick <= 12)
-                {
-                    if (region.Favor >= 5.0)
-                    {
-                        region.CastOmen((int)b.Band.CampX, (int)b.Band.CampY, "A low rumble of celestial anger shook the stolen hearth", isGood: false);
-                        region.LastOmenSignDay = region.Clock.Day;
-                    }
-                    b.LastWitnessedTheftTick = -99999;
-                }
-            }
-
-            // Proactive sign if god has been quiet for longer than the pacing interval
-            if (region.Clock.Hour == 12 && region.Clock.Day - region.LastOmenSignDay >= omenInterval && region.Favor >= 15.0)
-            {
-                var camp = region.Bands.FirstOrDefault(b => b.Band.Members.Any());
-                if (camp != null)
-                {
-                    region.CastOmen((int)camp.Band.CampX, (int)camp.Band.CampY, isFaithfulBand ? "A celestial blessing bathed the camp" : "A radiant glow illuminated the morning sky", isGood: true);
-                    region.LastOmenSignDay = region.Clock.Day;
-                }
-            }
-
-            // 2. Weather before a hard season (large act, 60 favor, 1/year limit):
-            // In Autumn or early Winter, soften harsh winter before freeze-up.
-            if ((region.Clock.Season == Season.Autumn || (region.Clock.Season == Season.Winter && region.Clock.DayOfSeason < 30)) && region.Clock.Hour == 12)
-            {
-                if (region.Clock.Day - region.LastWeatherDay >= 360 && region.World.Climate.WinterSeverity > 0.0 && region.Favor >= 60.0)
-                {
-                    region.CastWeather(Season.Winter, -0.4);
-                    region.LastWeatherDay = region.Clock.Day;
-                }
-            }
-
-            // 3. Heal critically sick / dying when unlocked (large act, 50 favor, generation limit in CanCastHeal):
-            if (region.Favor >= 50.0)
-            {
-                var dying = region.People.FirstOrDefault(p => p.Alive && p.Illness != null && p.Health < 0.50 && region.CanCastHeal(p));
-                if (dying != null)
-                {
-                    region.CastHeal(dying);
-                }
-            }
-
-            // 4. Food when a camp is hungry (medium act, 20 plant / 30 animal favor, 1/season/camp limit):
-            var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted);
+            // 1. Food & Sickness when a camp prays or is in acute famine (medium act, 20 plant / 30 animal favor, 1/season/camp limit):
+            var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted && p.LastSignDay < p.StartDay);
             if (unhelped != null)
             {
                 if (unhelped.Need == PrayerNeed.Hunger)
                 {
-                    bool campStarving = unhelped.Asker != null && (unhelped.Asker.Satiety < 0.40 || (unhelped.Asker.Home?.Food.Total ?? 0) < 2.0);
                     var camp = region.Bands.FirstOrDefault(b => b.Band.CampX == unhelped.CampX && b.Band.CampY == unhelped.CampY);
+                    bool campStarving = unhelped.Asker != null && unhelped.Asker.Satiety < 0.45 && (camp == null || camp.Band.FoodTotal < camp.Band.Members.Count * 0.8);
                     bool canBounty = camp == null || (region.Clock.Day - camp.LastBountyDay >= 90);
 
                     if (campStarving && canBounty)
                     {
                         bool isWinter = region.Clock.Season == Season.Winter;
-                        if (isWinter && region.Favor >= 30.0)
+                        if (isWinter && region.Favor >= 35.0)
                         {
                             region.CastBounty(unhelped.CampX, unhelped.CampY, animals: true);
-                            unhelped.PowerCasted = true;
+                            foreach (var pr in region.ActivePrayers.Where(pr => !pr.Resolved && pr.CampX == unhelped.CampX && pr.CampY == unhelped.CampY))
+                            {
+                                pr.PowerCasted = true;
+                                pr.LastSignDay = region.Clock.Day;
+                            }
                             if (camp != null) camp.LastBountyDay = region.Clock.Day;
                         }
-                        else if (!isWinter && region.Favor >= 20.0)
+                        else if (!isWinter && region.Favor >= 25.0)
                         {
                             region.CastBounty(unhelped.CampX, unhelped.CampY, animals: false);
-                            unhelped.PowerCasted = true;
+                            foreach (var pr in region.ActivePrayers.Where(pr => !pr.Resolved && pr.CampX == unhelped.CampX && pr.CampY == unhelped.CampY))
+                            {
+                                pr.PowerCasted = true;
+                                pr.LastSignDay = region.Clock.Day;
+                            }
                             if (camp != null) camp.LastBountyDay = region.Clock.Day;
                         }
+                        else if (region.Favor >= 15.0 && region.Clock.Day - region.LastOmenSignDay >= 12)
+                        {
+                            region.CastOmen(unhelped.CampX, unhelped.CampY, "A comforting sign answered the hungry camp's plea", isGood: true);
+                            foreach (var pr in region.ActivePrayers.Where(pr => !pr.Resolved && pr.CampX == unhelped.CampX && pr.CampY == unhelped.CampY))
+                                pr.LastSignDay = region.Clock.Day;
+                            region.LastOmenSignDay = region.Clock.Day;
+                        }
+                    }
+                    else if (region.Favor >= 15.0 && region.Clock.Day - region.LastOmenSignDay >= 12)
+                    {
+                        region.CastOmen(unhelped.CampX, unhelped.CampY, "A comforting sign answered the camp's plea", isGood: true);
+                        foreach (var pr in region.ActivePrayers.Where(pr => !pr.Resolved && pr.CampX == unhelped.CampX && pr.CampY == unhelped.CampY))
+                            pr.LastSignDay = region.Clock.Day;
+                        region.LastOmenSignDay = region.Clock.Day;
                     }
                 }
                 else if (unhelped.Need == PrayerNeed.Sickness)
                 {
-                    if (region.CanCastHeal(unhelped.Asker) && region.Favor >= 50.0)
+                    if (region.CanCastHeal(unhelped.Asker) && region.Favor >= 65.0)
                     {
                         region.CastHeal(unhelped.Asker);
                         unhelped.PowerCasted = true;
+                        unhelped.LastSignDay = region.Clock.Day;
                     }
-                    else if (region.Favor >= 5.0)
+                    else if (region.Favor >= 15.0 && region.Clock.Day - region.LastOmenSignDay >= 12)
                     {
                         region.CastOmen(unhelped.CampX, unhelped.CampY, "A gentle sign touches the sick", isGood: true);
+                        foreach (var pr in region.ActivePrayers.Where(pr => !pr.Resolved && pr.CampX == unhelped.CampX && pr.CampY == unhelped.CampY))
+                            pr.LastSignDay = region.Clock.Day;
                         unhelped.PowerCasted = true;
+                        region.LastOmenSignDay = region.Clock.Day;
                     }
                 }
             }
 
-            // Also check camps in acute famine without open prayers (1/season/camp limit)
+            // Also check camps in severe acute famine without open prayers (1/season/camp limit), keeping a 15 favor reserve for omens
             if (region.Clock.Hour == 12)
             {
                 bool isWinter = region.Clock.Season == Season.Winter;
                 double cost = isWinter ? 30.0 : 20.0;
-                if (region.Favor >= cost)
+                if (region.Favor >= cost + 15.0)
                 {
-                    var acuteCamp = region.Bands.FirstOrDefault(b => (b.Band.FoodTotal < b.Band.Members.Count * 1.5 || b.Band.Members.Any(m => m.Reserve < 0.35)) && (region.Clock.Day - b.LastBountyDay >= 90));
+                    var acuteCamp = region.Bands.FirstOrDefault(b => b.Band.Members.Count > 0
+                        && b.Band.FoodTotal < b.Band.Members.Count * 0.3
+                        && (b.Band.Members.Average(m => m.Satiety) < 0.50 || b.Band.Members.Any(m => m.Reserve < 0.35))
+                        && (region.Clock.Day - b.LastBountyDay >= 90));
                     if (acuteCamp != null)
                     {
                         region.CastBounty((int)acuteCamp.Band.CampX, (int)acuteCamp.Band.CampY, animals: isWinter);
@@ -322,8 +304,86 @@ namespace Anthro.Sim
                 }
             }
 
-            // 5. Blessed Birth when demographic support needed (large act, 40 favor, 1/generation limit):
-            if (region.Favor >= 40.0 && region.Clock.Hour == 12)
+            // 2. Heal critically sick / dying when unlocked (large act, 50 favor, generation limit in CanCastHeal):
+            if (region.Favor >= 65.0)
+            {
+                var dying = region.People.FirstOrDefault(p => p.Alive && p.Illness != null && p.Health < 0.50 && region.CanCastHeal(p));
+                if (dying != null)
+                {
+                    region.CastHeal(dying);
+                }
+            }
+
+            // 3. Weather before a hard season (large act, 60 favor, 1/year limit):
+            // In Autumn or early Winter, soften harsh winter before freeze-up.
+            if ((region.Clock.Season == Season.Autumn || (region.Clock.Season == Season.Winter && region.Clock.DayOfSeason < 30)) && region.Clock.Hour == 12)
+            {
+                if (region.Clock.Day - region.LastWeatherDay >= 360 && region.World.Climate.WinterSeverity > 0.0 && region.Favor >= 80.0)
+                {
+                    region.CastWeather(Season.Winter, -0.4);
+                    region.LastWeatherDay = region.Clock.Day;
+                }
+            }
+
+            // 4. Small acts: theft omens & periodic signs scaled by faith stage (D4 owner decision 2026-10-13):
+            // - Stage 1 (new god, few believers): ~1 a month (~30 days).
+            // - Stage 2 (faithful band, believers >= 50%): ~24/yr across the region (~14 days).
+            // Pacing scales smoothly from 30 days down to 14 days as mean adult belief grows.
+            double t = System.Math.Clamp((meanReal - 0.25) / (0.60 - 0.25), 0.0, 1.0);
+            long omenInterval = (long)System.Math.Round(30.0 - t * (30.0 - 14.0));
+            if (region.Favor < 25.0) omenInterval = System.Math.Max(omenInterval, 20);
+            if (region.Favor < 15.0) omenInterval = System.Math.Max(omenInterval, 30);
+
+            foreach (var b in region.Bands)
+            {
+                if (region.Clock.Tick - b.LastWitnessedTheftTick <= 12)
+                {
+                    if (region.Favor >= 15.0 && region.Clock.Day - region.LastOmenSignDay >= 10)
+                    {
+                        region.CastOmen((int)b.Band.CampX, (int)b.Band.CampY, "A low rumble of celestial anger shook the stolen hearth", isGood: false);
+                        region.LastOmenSignDay = region.Clock.Day;
+                    }
+                    b.LastWitnessedTheftTick = -99999;
+                }
+            }
+
+            // Proactive sign if god has been quiet for longer than the pacing interval.
+            // Cost is 5.0 favor. Keep a crisis reserve during Autumn/Winter (20.0) or Spring/Summer (10.0),
+            // but if the god has been silent >= 30 days, cast whenever Favor >= 5.0 so faith never starves.
+            double minFavorForProactiveOmen = (region.Clock.Day - region.LastOmenSignDay >= 30)
+                ? 5.0
+                : ((region.Clock.Season == Season.Autumn || region.Clock.Season == Season.Winter) ? 20.0 : 10.0);
+            if (region.Clock.Hour == 12 && region.Clock.Day - region.LastOmenSignDay >= omenInterval && region.Favor >= minFavorForProactiveOmen)
+            {
+                var liveCamps = region.Bands.Where(b => b.Band.Members.Any(m => m.Alive)).ToList();
+                if (liveCamps.Count > 0)
+                {
+                    // God favors camps that actively pray/thank/offer (creating natural variation in divine attention across camps)
+                    Simulation camp = liveCamps[0];
+                    double totalWeight = 0.0;
+                    var weights = new double[liveCamps.Count];
+                    for (int i = 0; i < liveCamps.Count; i++)
+                    {
+                        var c = liveCamps[i];
+                        double w = 0.5 + c.ThisYear.PrayersAsked * 1.5 + c.ThisYear.FavorGain * 2.0;
+                        weights[i] = w;
+                        totalWeight += w;
+                    }
+                    double roll = region.GodRng.Range(0.0, totalWeight);
+                    double acc = 0.0;
+                    for (int i = 0; i < liveCamps.Count; i++)
+                    {
+                        acc += weights[i];
+                        if (roll <= acc) { camp = liveCamps[i]; break; }
+                    }
+
+                    region.CastOmen((int)camp.Band.CampX, (int)camp.Band.CampY, isFaithfulBand ? "A celestial blessing bathed the camp" : "A radiant glow illuminated the morning sky", isGood: true);
+                    region.LastOmenSignDay = region.Clock.Day;
+                }
+            }
+
+            // 5. Blessed Birth when demographic support needed and band is established (large act, 40 favor, 1/generation limit):
+            if (isFaithfulBand && region.Favor >= 65.0 && adultCount < 45 && region.Clock.Hour == 12)
             {
                 var mother = region.People.FirstOrDefault(p => p.Alive && p.Sex == Sex.Female && p.Spouses.Count > 0 && p.AgeYears(region.Clock) >= 18 && p.AgeYears(region.Clock) <= 35 && region.CanCastBlessedBirth(p));
                 if (mother != null)

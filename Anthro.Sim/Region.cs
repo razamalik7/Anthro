@@ -110,7 +110,18 @@ namespace Anthro.Sim
                         if (kv.Key.StartsWith("act:") || kv.Key.StartsWith("tactic:") || kv.Key.StartsWith("wed:") || kv.Key.StartsWith("bound:") || kv.Key.StartsWith("norm:"))
                             p.Expect.Absorb(kv.Key, kv.Value + Rng.Normal(0, 0.1), 1, kv.Value);
                         else if (!Simulation.Off("god") && kv.Key.StartsWith("god:"))
-                            p.Expect.Absorb(kv.Key, kv.Value + GodRng.Normal(0, 0.1), 1, kv.Value);
+                        {
+                            double jitter = GodRng.Normal(0, 0.03);
+                            double val = kv.Key switch
+                            {
+                                "god:real" => Math.Clamp(kv.Value + jitter, 0.08, 0.35),
+                                "god:answers" => Math.Clamp(kv.Value + jitter * 0.5, 0.02, 0.18),
+                                "god:thank" => Math.Clamp(kv.Value + jitter, 0.02, 0.28),
+                                "god:offer" => kv.Value > 0 ? Math.Max(0.0, kv.Value + jitter * 0.5) : 0.0,
+                                _ => Math.Clamp(kv.Value + jitter, -1.0, 1.0)
+                            };
+                            p.Expect.Absorb(kv.Key, val, 1, kv.Value);
+                        }
                     }
                 }
             }

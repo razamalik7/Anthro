@@ -18,8 +18,8 @@ all_batches = [
     # Baselines
     ("godoff", 41, 60, ["ANTHRO_OFF=god"]),
     ("godoff2", 61, 80, ["ANTHRO_OFF=god"]),
-    ("idle", 41, 60, ["ANTHRO_OFF="]),
-    ("idle2", 61, 80, ["ANTHRO_OFF="]),
+    ("idle", 41, 60, ["ANTHRO_GOD=none", "ANTHRO_OFF="]),
+    ("idle2", 61, 80, ["ANTHRO_GOD=none", "ANTHRO_OFF="]),
     
     # The Bots (C1 & C2)
     ("kind", 41, 60, ["ANTHRO_GOD=kind", "ANTHRO_OFF="]),

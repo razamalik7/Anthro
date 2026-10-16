@@ -203,7 +203,8 @@ namespace Anthro.Sim
                 // Those an act is done to face-to-face know of it; a take from a hearth is only noticed by
                 // whoever happens to be about.
                 bool involved = deed.Act != Act.Take && (m == deed.Target || (deed.Hearth != null && m.Home == deed.Hearth && !deed.Far));
-                if (involved || !deed.Far && AwakeInCamp(m) && Rng.Chance(0.15 * (0.6 + m.M(MindTrait.Curiosity) * 0.8))) seen.Add(m);
+                var witnessRng = deed.Act == Act.Offer ? Region.GodRng : Rng;
+                if (involved || !deed.Far && AwakeInCamp(m) && witnessRng.Chance(0.15 * (0.6 + m.M(MindTrait.Curiosity) * 0.8))) seen.Add(m);
             }
             // Someone an act is done to face to face knows of it, even if they're from another band.
             if (deed.Target != null && deed.Act != Act.Take && deed.Target != deed.Actor && !seen.Contains(deed.Target) && deed.Target.Alive) seen.Add(deed.Target);
@@ -748,9 +749,25 @@ namespace Anthro.Sim
         /// <summary>A newborn takes on its mother's expectations about how people treat each other (it grows up among them).</summary>
         static void InheritSocialExpectations(Person child, Person mother)
         {
+            double cred = child.M(MindTrait.Credulity);
             foreach (var kv in mother.Expect.Snapshot())
-                if (kv.Key.StartsWith("act:") || kv.Key.StartsWith("wed:") || kv.Key.StartsWith("bound:") || kv.Key.StartsWith("norm:") || (!Off("god") && kv.Key.StartsWith("god:")))
+            {
+                if (kv.Key.StartsWith("act:") || kv.Key.StartsWith("wed:") || kv.Key.StartsWith("bound:") || kv.Key.StartsWith("norm:"))
                     child.Expect.Absorb(kv.Key, kv.Value, 1, kv.Value);
+                else if (!Off("god") && kv.Key.StartsWith("god:"))
+                {
+                    if (kv.Key == "god:real")
+                    {
+                        double v = System.Math.Clamp(0.06 + 0.34 * cred + System.Math.Max(0, kv.Value - 0.25) * 0.35 * cred, 0.06, 0.55);
+                        child.Expect.Absorb(kv.Key, v, 1, v);
+                    }
+                    else
+                    {
+                        double v = kv.Value * 0.5 * (0.4 + 0.8 * cred);
+                        child.Expect.Absorb(kv.Key, v, 1, v);
+                    }
+                }
+            }
         }
     }
 }

@@ -29,6 +29,7 @@ def parse_prefix(prefix):
     if not files:
         return None
 
+    thanks = []
     prayers = []
     offers = []
     rites = []
@@ -41,23 +42,26 @@ def parse_prefix(prefix):
 
     for f in files:
         content = open(f, encoding='utf-8', errors='replace').read()
-        m = re.search(r'FAVOR_AUDIT bot (\w+) earned/yr prayer:([\d.]+) offer:([\d.]+) rite:([\d.]+) other:([\d.]+) \| spent/yr (.*?) \| broke_pct ([\d.]+)% first_broke_day (-?\d+)', content)
-        if not m:
+        matches = list(re.finditer(r'FAVOR_AUDIT bot (\w+) earned/yr prayer:([\d.]+)(?: thank:([\d.]+))? offer:([\d.]+) rite:([\d.]+) other:([\d.]+) \| spent/yr (.*?) \| broke_pct ([\d.]+)% first_broke_day (-?\d+)', content))
+        if not matches:
             continue
+        m = matches[-1]
         
         p = float(m.group(2))
-        o = float(m.group(3))
-        r = float(m.group(4))
-        oth = float(m.group(5))
-        spent_str = m.group(6).strip()
-        bp = float(m.group(7))
-        fbd = int(m.group(8))
+        th = float(m.group(3)) if m.group(3) is not None else 0.0
+        o = float(m.group(4))
+        r = float(m.group(5))
+        oth = float(m.group(6))
+        spent_str = m.group(7).strip()
+        bp = float(m.group(8))
+        fbd = int(m.group(9))
 
         prayers.append(p)
+        thanks.append(th)
         offers.append(o)
         rites.append(r)
         others.append(oth)
-        totals_earned.append(p + o + r + oth)
+        totals_earned.append(p + th + o + r + oth)
         broke_pcts.append(bp)
         first_broke_days.append(fbd)
 
@@ -85,6 +89,7 @@ def parse_prefix(prefix):
         "prefix": prefix,
         "n": n,
         "prayer": st.mean(prayers),
+        "thank": st.mean(thanks) if thanks else 0.0,
         "offer": st.mean(offers),
         "rite": st.mean(rites),
         "other": st.mean(others),
@@ -105,16 +110,16 @@ def print_audit(prefixes):
         print("No audit data found.")
         return
 
-    print("=" * 115)
-    print(f"{'Prefix':<12} | {'Earned/yr':<28} | {'Spent/yr':<25} | {'Broke%':<8} | {'First Broke Day':<15} | {'Worlds Broke':<10}")
-    print(f"{'':<12} | {'pray   off   rite other total':<28} | {'total  (by power)':<25} | {'':<8} | {'mean / min':<15} | {'(of 20)':<10}")
-    print("-" * 115)
+    print("=" * 122)
+    print(f"{'Prefix':<12} | {'Earned/yr':<34} | {'Spent/yr':<25} | {'Broke%':<8} | {'First Broke Day':<15} | {'Worlds Broke':<10}")
+    print(f"{'':<12} | {'pray   thk   off   rite other total':<34} | {'total  (by power)':<25} | {'':<8} | {'mean / min':<15} | {'(of 20)':<10}")
+    print("-" * 122)
     
     for r in results:
         powers = " ".join(f"{k}:{v:.1f}" for k, v in r["power_spents"].items())
         fbd_str = f"{r['first_broke_day_avg']:.0f} / {r['first_broke_day_min']}" if r['first_broke_day_avg'] >= 0 else "never"
-        print(f"{r['prefix']:<12} | {r['prayer']:4.1f}  {r['offer']:4.1f}  {r['rite']:4.1f}  {r['other']:4.1f} {r['total_earned']:5.1f} | {r['total_spent']:5.1f}  {powers:<18} | {r['broke_pct']:6.1f}% | {fbd_str:<15} | {r['worlds_broke']:>2}/{r['n']}")
-    print("=" * 115)
+        print(f"{r['prefix']:<12} | {r['prayer']:4.1f}  {r['thank']:4.1f}  {r['offer']:4.1f}  {r['rite']:4.1f}  {r['other']:4.1f} {r['total_earned']:5.1f} | {r['total_spent']:5.1f}  {powers:<18} | {r['broke_pct']:6.1f}% | {fbd_str:<15} | {r['worlds_broke']:>2}/{r['n']}")
+    print("=" * 122)
 
     print("\n" + "=" * 115)
     print("ACTS PER YEAR BY SIZE VS TARGET (PLANNING.md / GOD-LAYER.md)")

@@ -123,7 +123,7 @@ namespace Anthro.Sim.Activities
         protected override void OnEnd(Simulation sim)
         {
             if (_with == null) return;
-            using (Core.Profiler.Measure("talk exchange")) SocialLearning.Exchange(P, _with, sim.Rng);
+            using (Core.Profiler.Measure("talk exchange")) SocialLearning.Exchange(P, _with, sim.Rng, sim.Region?.GodRng);
             using (Core.Profiler.Measure("talk gossip")) sim.Gossip(P, _with);
             using (Core.Profiler.Measure("talk passon")) { sim.PassOn(P, _with); sim.PassOn(_with, P); }
             using (Core.Profiler.Measure("talk places")) { sim.TellPlaces(P, _with); sim.TellPlaces(_with, P); }
@@ -225,8 +225,22 @@ namespace Anthro.Sim.Activities
             sim.Contact(P, _teacher, 0.5);
             P.AddAffinity(_teacher, 0.01);
             // Children soak up what the adults around them believe, along with the skill.
+            double cred = P.M(MindTrait.Credulity);
             foreach (var kv in _teacher.Expect.Snapshot())
-                P.Expect.Absorb(kv.Key, kv.Value, 0.05 * (0.5 + P.M(MindTrait.Openness)), kv.Value);
+            {
+                if (kv.Key.StartsWith("god:"))
+                {
+                    double targetVal = kv.Key == "god:real"
+                        ? Math.Min(kv.Value * 0.85, Simulation.TemperamentSignTarget(P) * 0.85)
+                        : kv.Value * (0.35 + 0.65 * cred);
+                    double defVal = kv.Key == "god:real" ? 0.2 : 0.0;
+                    P.Expect.Absorb(kv.Key, targetVal, 0.02 * (0.5 + P.M(MindTrait.Openness)) * cred, P.Expect.Get(kv.Key, defVal));
+                }
+                else
+                {
+                    P.Expect.Absorb(kv.Key, kv.Value, 0.05 * (0.5 + P.M(MindTrait.Openness)), kv.Value);
+                }
+            }
         }
     }
 
@@ -325,6 +339,7 @@ namespace Anthro.Sim.Activities
             var oSeason = sim.Clock.Season;
             sim.ThisYear.DevotionBySeason[oSeason] = sim.ThisYear.DevotionBySeason.TryGetValue(oSeason, out var oDv) ? oDv + 1 : 1;
             if (P.Satiety >= 0.6) sim.ThisYear.DevotionFed++; else sim.ThisYear.DevotionHungry++;
+            sim.LastOfferFeastDay = sim.Clock.Day;
 
             if (!Simulation.Off("relief") && P.Dread > 0.05)
             {

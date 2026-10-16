@@ -88,7 +88,7 @@ namespace Anthro.Sim
                 prayer.InitialSeverity = asker.Injury;
             }
 
-            if (Favor <= 5.0 && People.Count(Simulation.IsBeliever) <= 2)
+            if (Favor <= 5.0 && People.Count(p => Simulation.GodReal(p) >= 0.30) <= 2 && !ActivePrayers.Any(pr => pr.IsEmber && !pr.Resolved))
             {
                 prayer.IsEmber = true;
                 GodEvents.Add(new GodEvent(Clock.Tick, "LastEmber", $"{asker.Name} prayed from the last embers of faith", campX, campY));
@@ -117,14 +117,15 @@ namespace Anthro.Sim
                 var target = prayer.SickTarget ?? asker;
                 
                 // Each day a plea goes unanswered, it erodes belief
-                if (Clock.Hour == 0)
+                if (Clock.Hour == 0 && Clock.Day > prayer.StartDay)
                 {
                     double desperation = 0.01;
-                    if (prayer.Need == PrayerNeed.Hunger) desperation = Math.Max(0.01, (1.0 - asker.Satiety) * 0.05);
-                    if (prayer.Need == PrayerNeed.Sickness) desperation = Math.Max(0.01, target.Sickness * 0.05);
-                    if (prayer.Need == PrayerNeed.Danger) desperation = Math.Max(0.01, asker.Injury * 0.05);
+                    if (prayer.Need == PrayerNeed.Hunger) desperation = Math.Max(0.01, (1.0 - asker.Satiety) * 0.04);
+                    if (prayer.Need == PrayerNeed.Sickness) desperation = Math.Max(0.01, target.Sickness * 0.04);
+                    if (prayer.Need == PrayerNeed.Danger) desperation = Math.Max(0.01, asker.Injury * 0.04);
+                    if (prayer.PowerCasted || prayer.LastSignDay >= prayer.StartDay) desperation *= 0.2;
                     asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, desperation, Simulation.GodAnswers(asker));
-                    asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, desperation * 0.5, Simulation.GodReal(asker));
+                    asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, desperation * 0.4, Simulation.GodReal(asker));
                     
                     if (Simulation.GodAnswers(asker) < 0.02)
                     {
@@ -146,13 +147,20 @@ namespace Anthro.Sim
                     {
                         prayer.LastSignDay = Clock.Day;
                         double cred = asker.M(MindTrait.Credulity);
-                        asker.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.08 * (0.4 + cred * 0.8), Simulation.GodAnswers(asker));
-                        asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.06 * (0.4 + cred * 0.8), Simulation.GodReal(asker));
+                        double receptivity = Math.Clamp((cred - 0.24) * 2.2, 0.04, 1.6);
+                        double signWeight = omenNearby ? 0.12 * receptivity : 0.03 * receptivity * Simulation.GodReal(asker);
+                        double signTarget = omenNearby ? Math.Max(Simulation.TemperamentSignTarget(asker), 0.72) : Simulation.TemperamentSignTarget(asker);
+                        asker.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, signWeight, Simulation.GodAnswers(asker));
+                        asker.Expect.Absorb(Simulation.GodRealTopic, signTarget, signWeight * 0.85, Simulation.GodReal(asker));
                         GodEvents.Add(new GodEvent(Clock.Tick, "PrayerSign", $"{asker.Name} saw a sign while their plea for {prayer.Need} was open", prayer.CampX, prayer.CampY));
                     }
 
                     bool deathInFamily = band.Band.LastDeathDay == Clock.Day;
-                    bool hardFrost = band.World[(int)band.Band.CampX, (int)band.Band.CampY].Temperature < -5.0 && Clock.Season == Season.Winter;
+                    bool hardFrost = band.World[(int)band.Band.CampX, (int)band.Band.CampY].Temperature < -12.0
+                        && Clock.Season == Season.Winter
+                        && prayer.LastRefusalDay < prayer.StartDay
+                        && !prayer.PowerCasted
+                        && prayer.LastSignDay < prayer.StartDay;
 
                     if ((deathInFamily || hardFrost) && prayer.LastRefusalDay != Clock.Day)
                     {
@@ -163,7 +171,7 @@ namespace Anthro.Sim
                             asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.35, Simulation.GodAnswers(asker));
                             asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, 0.25, Simulation.GodReal(asker));
                             asker.Expect.Absorb(Simulation.GodKindTopic, -1.0, 0.25, Simulation.GodKind(asker));
-                            if (Clock.Day - asker.LastThanksDay <= 7)
+                            if (asker.LastThanksDay > asker.LastGodSignDay)
                                 asker.Expect.Absorb(Simulation.GodThankTopic, -1.0, 0.25, Simulation.GodThank(asker));
                         }
                         else
@@ -200,7 +208,7 @@ namespace Anthro.Sim
                             asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.40, Simulation.GodAnswers(asker));
                             asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, 0.30, Simulation.GodReal(asker));
                             asker.Expect.Absorb(Simulation.GodKindTopic, -1.0, 0.25, Simulation.GodKind(asker));
-                            if (Clock.Day - asker.LastThanksDay <= 7)
+                            if (asker.LastThanksDay > asker.LastGodSignDay)
                                 asker.Expect.Absorb(Simulation.GodThankTopic, -1.0, 0.25, Simulation.GodThank(asker));
                         }
                         toResolve.Add((prayer, false, 1.0));
@@ -265,54 +273,70 @@ namespace Anthro.Sim
             if (answered)
             {
                 PrayersResolvedGoodYear++;
+                bool divineIntervention = p.PowerCasted || p.LastSignDay >= p.StartDay;
+                double askerCred = p.Asker.M(MindTrait.Credulity);
+                double askerReceptivity = Math.Clamp((askerCred - 0.24) * 2.2, 0.05, 1.6);
+
                 var band = Bands.FirstOrDefault(b => b.Band.Members.Contains(p.Asker));
                 if (band != null)
                 {
                     band.ThisYear.PrayersResolvedGood++;
                     foreach (var w in band.Band.Members.Where(m => m != p.Asker && band.Grown(m)))
                     {
-                        w.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.12 * surprise, Simulation.GodAnswers(w));
-                        w.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.08 * surprise, Simulation.GodReal(w));
+                        double wCred = w.M(MindTrait.Credulity);
+                        double wRec = Math.Clamp((wCred - 0.24) * 2.2, 0.04, 1.6);
+                        if (divineIntervention)
+                        {
+                            w.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.10 * surprise * wRec, Simulation.GodAnswers(w));
+                            w.Expect.Absorb(Simulation.GodRealTopic, Simulation.TemperamentSignTarget(w), 0.08 * surprise * wRec, Simulation.GodReal(w));
+                        }
+                        else
+                        {
+                            w.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.02 * surprise * wRec * Simulation.GodReal(w), Simulation.GodAnswers(w));
+                        }
                     }
                 }
 
-                // Asker learns answered plea (D3: dramatic answered plea can convert skeptics)
-                double convertWeight = surprise >= 0.7 ? 0.45 * surprise : 0.25 * surprise;
-                p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, convertWeight, Simulation.GodAnswers(p.Asker));
-                p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, convertWeight, Simulation.GodReal(p.Asker));
-                if (Clock.Day - p.Asker.LastThanksDay <= 7)
+                // Asker learns answered plea (D3: dramatic answered plea can convert skeptics when divine intervention or high surprise)
+                double answerWeight = divineIntervention
+                    ? (surprise >= 0.7 ? 0.45 * surprise : 0.25 * surprise) * Math.Max(0.35, askerReceptivity)
+                    : 0.16 * surprise * Math.Max(0.35, askerReceptivity);
+                double realWeight = divineIntervention
+                    ? answerWeight
+                    : 0.08 * surprise * Math.Max(0.25, askerReceptivity) * Math.Max(0.20, Simulation.GodReal(p.Asker));
+                double askerTarget = divineIntervention ? 0.95 : Simulation.TemperamentSignTarget(p.Asker);
+                p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, answerWeight, Simulation.GodAnswers(p.Asker));
+                p.Asker.Expect.Absorb(Simulation.GodRealTopic, askerTarget, realWeight, Simulation.GodReal(p.Asker));
+                if (p.Asker.LastThanksDay > p.Asker.LastGodSignDay)
                 {
-                    double cred = p.Asker.M(MindTrait.Credulity);
-                    p.Asker.Expect.Absorb(Simulation.GodThankTopic, 1.0, 0.20 * surprise * (0.4 + cred * 0.8), Simulation.GodThank(p.Asker));
+                    p.Asker.Expect.Absorb(Simulation.GodThankTopic, 1.0, 0.16 * surprise * askerReceptivity, Simulation.GodThank(p.Asker));
                 }
 
                 // B2: Escalated plea that was answered credits god:offer
                 if (p.HasOffering)
                 {
-                    double cred = p.Asker.M(MindTrait.Credulity);
                     double real = Simulation.GodReal(p.Asker);
-                    double weight = 0.20 * (0.4 + cred * 0.8) * Math.Max(0.2, real);
+                    double weight = (divineIntervention ? 0.22 : 0.08) * askerReceptivity * Math.Max(0.2, real);
                     p.Asker.Expect.Absorb(Simulation.GodOfferTopic, 1.0, weight, p.Asker.Expect.Get(Simulation.GodOfferTopic, 0.0));
 
-                    if (band != null)
+                    if (band != null && divineIntervention)
                     {
                         foreach (var w in band.Band.Members.Where(m => m != p.Asker && band.Grown(m)))
                         {
                             double wCred = w.M(MindTrait.Credulity);
+                            double wRec = Math.Clamp((wCred - 0.24) * 2.2, 0.04, 1.6);
                             double wReal = Simulation.GodReal(w);
-                            w.Expect.Absorb(Simulation.GodOfferTopic, 1.0, 0.10 * (0.4 + wCred * 0.8) * Math.Max(0.2, wReal), w.Expect.Get(Simulation.GodOfferTopic, 0.0));
+                            w.Expect.Absorb(Simulation.GodOfferTopic, 1.0, 0.10 * wRec * Math.Max(0.2, wReal), w.Expect.Get(Simulation.GodOfferTopic, 0.0));
                         }
                     }
                 }
 
                 GodEvents.Add(new GodEvent(Clock.Tick, "PrayerAnswered", $"Plea by {p.Asker.Name} for {p.Need} was met (surprise: {surprise:F2})", p.CampX, p.CampY));
-                
-                if (surprise > 0.5) InterpretStrikingEvent(p.CampX, p.CampY, isGood: true, "PrayerAnswered");
 
                 if (p.IsEmber)
                 {
                     IgnoredEmbers = 0;
-                    p.Asker.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.40 * surprise, Simulation.GodReal(p.Asker));
+                    p.Asker.Expect.Absorb(Simulation.GodRealTopic, 0.95, 0.40 * surprise, Simulation.GodReal(p.Asker));
                     GodEvents.Add(new GodEvent(Clock.Tick, "EmberAnswered", $"An ember plea was answered! Faith rekindles in {p.Asker.Name}", p.CampX, p.CampY));
                 }
             }
@@ -333,7 +357,7 @@ namespace Anthro.Sim
                 {
                     p.Asker.Expect.Absorb(Simulation.GodAnswersTopic, 0.0, 0.25, Simulation.GodAnswers(p.Asker));
                     p.Asker.Expect.Absorb(Simulation.GodRealTopic, 0.0, 0.15, Simulation.GodReal(p.Asker));
-                    if (Clock.Day - p.Asker.LastThanksDay <= 7)
+                    if (p.Asker.LastThanksDay > p.Asker.LastGodSignDay)
                     {
                         p.Asker.Expect.Absorb(Simulation.GodThankTopic, -1.0, 0.25, Simulation.GodThank(p.Asker));
                     }
@@ -345,7 +369,7 @@ namespace Anthro.Sim
                 }
                 GodEvents.Add(new GodEvent(Clock.Tick, "PrayerFailed", $"Plea by {p.Asker.Name} for {p.Need} failed", p.CampX, p.CampY));
 
-                if (p.IsEmber)
+                if (p.IsEmber && !p.PowerCasted && p.LastSignDay < p.StartDay)
                 {
                     IgnoredEmbers++;
                     GodEvents.Add(new GodEvent(Clock.Tick, "EmberIgnored", $"An ember plea went unanswered ({IgnoredEmbers}/3)", p.CampX, p.CampY));
@@ -370,17 +394,23 @@ namespace Anthro.Sim
             {
                 p.LastThanksDay = Clock.Day;
                 double real = GodReal(p);
-                double gain = 0.5 * real;
-                Region.FavorEarnedPrayer += gain;
+                double gain = 0.50 * real;
+                Region.FavorEarnedThanks += gain;
                 Region.AddFavor(gain);
                 ThisYear.PrayersAsked++;
                 ThisYear.FavorGain += gain;
+
+                if (Clock.Day - p.LastGodSignDay <= 45 && p.Satiety >= 0.6)
+                {
+                    p.Expect.Absorb(Simulation.GodThankTopic, 0.45, 0.025 * real * p.M(MindTrait.Credulity), Simulation.GodThank(p));
+                }
 
                 // Witnessed by camp members (D1)
                 foreach (var w in Band.Members.Where(m => m != p && Grown(m)))
                 {
                     double wReal = GodReal(w);
-                    w.Expect.Absorb(Simulation.GodThankTopic, Simulation.GodThank(p), 0.02 * wReal, Simulation.GodThank(w));
+                    double wCred = w.M(MindTrait.Credulity);
+                    w.Expect.Absorb(Simulation.GodThankTopic, Simulation.GodThank(p), 0.04 * wReal * wCred, Simulation.GodThank(w));
                 }
 
                 Region.GodEvents.Add(new GodEvent(Clock.Tick, "Thanks", $"{p.Name} gave thanks to the god (+{gain:F1} favor)", (int)Band.CampX, (int)Band.CampY));
@@ -392,7 +422,8 @@ namespace Anthro.Sim
             }
 
             Region.AddPrayer(p, need, (int)Band.CampX, (int)Band.CampY, target);
-            double gainPrayer = 1.0 * GodReal(p);
+            p.LastPrayDay = Clock.Day;
+            double gainPrayer = 1.5 * GodReal(p);
             Region.FavorEarnedPrayer += gainPrayer;
             Region.AddFavor(gainPrayer);
             ThisYear.PrayersAsked++;

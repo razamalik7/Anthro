@@ -92,6 +92,7 @@ namespace Anthro.Sim
 
         /// <summary>Best plant patches near camp, refreshed daily so foragers don't each scan the map.</summary>
         public readonly List<Cell> ForagePatches = new List<Cell>();
+        public long LastOfferFeastDay = -99999;
 
         public YearStats ThisYear { get; private set; } = new YearStats();
         public event Action<YearStats>? YearEnded;
@@ -729,16 +730,7 @@ namespace Anthro.Sim
                 if (giver != null)
                 {
                     var h = HomeOf(giver) ?? HomeOf(p);
-                    double giftAmount = 0.0;
-                    if (h != null && h.Food.Total >= 0.5)
-                    {
-                        giftAmount = h.Food.Take(Math.Min(1.0, h.Food.Total), out _);
-                    }
-                    else if (Band.Materials.Tools >= 1)
-                    {
-                        Band.Materials.Tools -= 1;
-                        giftAmount = 1.0;
-                    }
+                    double giftAmount = (h != null && h.Food.Total >= 0.5) ? Math.Min(1.0, h.Food.Total * 0.1) : (Band.Materials.Tools >= 1 ? 1.0 : 0.0);
 
                     if (giftAmount > 0.0)
                     {

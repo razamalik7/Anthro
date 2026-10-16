@@ -56,6 +56,7 @@ namespace Anthro.Sim
 
         // Favor audit tracking (T10 A1)
         public double FavorEarnedPrayer { get; set; }
+        public double FavorEarnedThanks { get; set; }
         public double FavorEarnedOffer { get; set; }
         public double FavorEarnedRite { get; set; }
         public double FavorEarnedOther { get; set; } = StartFavorPool;
@@ -188,17 +189,6 @@ namespace Anthro.Sim
             public void Execute(Region region)
             {
                 if (Simulation.Off("god") || Simulation.Off("power") || Simulation.Off("omen")) return;
-                double radius = WorldMap.FromMeters(5000);
-                var witnesses = region.Bands
-                    .Where(b => WorldMap.Distance(b.Band.CampX, b.Band.CampY, _x, _y) <= radius)
-                    .SelectMany(b => b.Band.Members.Where(b.Grown))
-                    .ToList();
-
-                foreach (var w in witnesses)
-                {
-                    w.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.08, Simulation.GodReal(w));
-                }
-
                 region.Reputation = Math.Max(-10.0, Math.Min(10.0, region.Reputation + (_isGood ? 0.5 : -0.5)));
                 region.Chronicle.Write(region.Clock, Importance.Notable, $"A striking omen appeared near ({_x}, {_y}): {_desc}.");
                 region.GodEvents.Add(new GodEvent(region.Clock.Tick, "Omen", _desc, _x, _y));
@@ -319,6 +309,7 @@ namespace Anthro.Sim
                 int bx = band != null ? (int)band.Band.CampX : 0;
                 int by = band != null ? (int)band.Band.CampY : 0;
                 region.GodEvents.Add(new GodEvent(region.Clock.Tick, "BlessedBirth", $"Blessing on {_mother.Name}", bx, by));
+                region.InterpretStrikingEvent(bx, by, isGood: true, "BlessedBirth", _mother);
             }
         }
 

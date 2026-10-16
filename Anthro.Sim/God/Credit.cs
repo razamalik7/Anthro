@@ -34,11 +34,15 @@ namespace Anthro.Sim
             {
                 foreach (var witness in band.Band.Members.Where(m => band.Grown(m) && m.Alive))
                 {
-                    witness.LastGodSignDay = Clock.Day;
+                    if (source != "BigKill")
+                        witness.LastGodSignDay = Clock.Day;
                     double real = Simulation.GodReal(witness);
                     if (real <= 0.05 && focalPerson == null) continue; // Unbelievers do not attribute general events to divine will
 
                     double cred = witness.M(MindTrait.Credulity);
+                    double receptivity = Math.Clamp((cred - 0.20) * 2.0, 0.15, 1.8) * (0.88 + 0.24 * witness.I(Interest.Spirits));
+                    bool isPersonalMiracle = focalPerson != null && (focalPerson == witness || witness.Children.Contains(focalPerson) || witness.Spouses.Contains(focalPerson));
+                    double signTarget = isPersonalMiracle ? 0.95 : Simulation.TemperamentSignTarget(witness);
 
                     // Learning from relief (T10 A2)
                     if (!Simulation.Off("relief"))
@@ -74,10 +78,12 @@ namespace Anthro.Sim
                                 witness.DreadPeak = Math.Max(witness.DreadPeak, witness.Dread);
                             }
 
-                            // D1 (owner decision 2026-10-13): A blow followed thanks -> weaken god:thank
-                            if (Clock.Day - witness.LastThanksDay <= 7)
+                            // D1 (owner decision 2026-10-13): A blow followed thanks -> weaken god:thank (continuous recency over the season)
+                            long daysSinceThanks = Clock.Day - witness.LastThanksDay;
+                            if (daysSinceThanks >= 0 && daysSinceThanks <= SimClock.DaysPerSeason)
                             {
-                                double weight = 0.15 * (0.4 + cred * 0.8) * Math.Max(0.2, real);
+                                double recency = 1.0 - (daysSinceThanks / (double)SimClock.DaysPerSeason) * 0.75;
+                                double weight = 0.18 * recency * receptivity * Math.Max(0.2, real);
                                 witness.Expect.Absorb(Simulation.GodThankTopic, -1.0, weight, Simulation.GodThank(witness));
                             }
                         }
@@ -85,12 +91,25 @@ namespace Anthro.Sim
                         {
                             witness.Dread = Math.Max(0.0, witness.Dread - 0.4);
 
-                            // D1 (owner decision 2026-10-13): Good fortune followed thanks -> strengthen god:thank (weighted by surprise)
-                            if (Clock.Day - witness.LastThanksDay <= 7)
+                            // D1 (owner decision 2026-10-13): Good fortune followed thanks -> strengthen god:thank (continuous surprise)
+                            double foodComfort = Math.Min(1.0, (witness.Home?.DaysOfFood ?? 0.0) / 3.5);
+                            double satComfort = Math.Max(0.0, (witness.Satiety - 0.4) / 0.6);
+                            double comfort = 0.6 * foodComfort + 0.4 * satComfort;
+                            double surprise = (source == "BigKill")
+                                ? Math.Max(0.05, 1.0 - comfort * 0.88)
+                                : Math.Max(0.45, 1.0 - comfort * 0.45);
+
+                            long daysSinceThanks = Clock.Day - witness.LastThanksDay;
+                            if (daysSinceThanks >= 0 && daysSinceThanks <= SimClock.DaysPerSeason)
                             {
-                                double surprise = regionWide ? 0.3 : 0.6;
-                                double weight = 0.15 * surprise * (0.4 + cred * 0.8) * Math.Max(0.2, real);
+                                double recency = 1.0 - (daysSinceThanks / (double)SimClock.DaysPerSeason) * 0.70;
+                                double weight = 0.25 * recency * surprise * receptivity;
                                 witness.Expect.Absorb(Simulation.GodThankTopic, 1.0, weight, Simulation.GodThank(witness));
+                            }
+                            else if (source != "BigKill")
+                            {
+                                // Witnessing an unprompted divine blessing inspires gratitude
+                                witness.Expect.Absorb(Simulation.GodThankTopic, 0.65, 0.16 * surprise * receptivity, Simulation.GodThank(witness));
                             }
                         }
                     }
@@ -125,10 +144,10 @@ namespace Anthro.Sim
                                 // Lightning on a wrongdoer: "the god punishes <their act>"
                                 var d = wrongDeed.Value.Deed;
                                 string topic = Simulation.GodActTopic(d.Act);
-                                double weight = 0.25 * (0.4 + cred * 0.8) * Math.Max(0.2, real);
+                                double weight = 0.25 * receptivity * Math.Max(0.2, real);
                                 witness.Expect.Absorb(topic, -1.0, weight, witness.Expect.Get(topic, 0.0));
-                                witness.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.12 * (0.4 + cred * 0.8), Simulation.GodReal(witness));
-                                witness.Expect.Absorb(Simulation.GodKindTopic, -0.2, 0.08 * (0.4 + cred * 0.8), Simulation.GodKind(witness));
+                                witness.Expect.Absorb(Simulation.GodRealTopic, signTarget, 0.18 * receptivity, Simulation.GodReal(witness));
+                                witness.Expect.Absorb(Simulation.GodKindTopic, -0.2, 0.08 * receptivity, Simulation.GodKind(witness));
                             }
                             else
                             {
@@ -146,21 +165,26 @@ namespace Anthro.Sim
                             {
                                 // Healing a known killer: people may conclude the god favours killers
                                 string topic = Simulation.GodActTopic(Act.Attack);
-                                double weight = 0.25 * (0.4 + cred * 0.8) * Math.Max(0.2, real);
+                                double weight = 0.25 * receptivity * Math.Max(0.2, real);
                                 witness.Expect.Absorb(topic, 1.0, weight, witness.Expect.Get(topic, 0.0));
-                                witness.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.10 * (0.4 + cred * 0.8), Simulation.GodReal(witness));
-                                witness.Expect.Absorb(Simulation.GodKindTopic, -0.5, 0.12 * (0.4 + cred * 0.8), Simulation.GodKind(witness));
+                                witness.Expect.Absorb(Simulation.GodRealTopic, signTarget, 0.16 * receptivity, Simulation.GodReal(witness));
+                                witness.Expect.Absorb(Simulation.GodKindTopic, -0.5, 0.12 * receptivity, Simulation.GodKind(witness));
                             }
                             else
                             {
                                 // Healing an innocent/ordinary person: miraculous benevolence
-                                witness.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.12 * (0.4 + cred * 0.8), Simulation.GodReal(witness));
-                                witness.Expect.Absorb(Simulation.GodKindTopic, 1.0, 0.15 * (0.4 + cred * 0.8), Simulation.GodKind(witness));
-                                if (witness == focalPerson || witness.Children.Contains(focalPerson))
+                                witness.Expect.Absorb(Simulation.GodRealTopic, signTarget, 0.20 * receptivity, Simulation.GodReal(witness));
+                                witness.Expect.Absorb(Simulation.GodKindTopic, 1.0, 0.15 * receptivity, Simulation.GodKind(witness));
+                                if (isPersonalMiracle)
                                 {
-                                    witness.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.20 * (0.4 + cred * 0.8), Simulation.GodAnswers(witness));
+                                    witness.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.25 * receptivity, Simulation.GodAnswers(witness));
                                 }
                             }
+                        }
+                        else if (source == "BlessedBirth")
+                        {
+                            witness.Expect.Absorb(Simulation.GodRealTopic, signTarget, 0.20 * receptivity, Simulation.GodReal(witness));
+                            witness.Expect.Absorb(Simulation.GodKindTopic, 1.0, 0.15 * receptivity, Simulation.GodKind(witness));
                         }
                     }
                     else
@@ -177,14 +201,20 @@ namespace Anthro.Sim
 
                             // Salience: recency (1.0 down to 0.25 over one season)
                             double recency = 1.0 - (ageDays / (double)SimClock.DaysPerSeason) * 0.75;
-                            // Firsthand observation is more vivid
-                            double vivid = rem.Firsthand ? 1.0 : 0.6;
-                            // Personal involvement increases salience
-                            double involvement = (d.Actor == witness || d.Target == witness || (d.Hearth != null && d.Hearth == witness.Home)) ? 1.5 : 1.0;
-                            // Dramatic/anti-social acts stand out
-                            double actWeight = (d.Act == Act.Attack || d.Act == Act.Take) ? 1.4 : 1.0;
+                            // Firsthand observation is much more vivid than gossip
+                            double vivid = rem.Firsthand ? 1.0 : 0.25;
+                            // Personal involvement (own deed or deed against self) strongly dominates conscience
+                            double involvement = (d.Actor == witness || d.Target == witness)
+                                ? 4.2
+                                : ((d.Hearth != null && d.Hearth == witness.Home) ? 1.4 : 1.0);
+                            // Transgressive or sacred acts stand out strongly over routine sharing
+                            double actWeight = (d.Act == Act.Attack || d.Act == Act.Take || d.Act == Act.Offer || d.Act == Act.Refuse)
+                                ? 3.5
+                                : (d.Act == Act.Give ? 0.45 : 1.2);
+                            // Individual focus variation so bystanders don't all fixate on the exact same background deed
+                            double focus = 0.80 + 0.40 * ((((witness.Id * 31 + d.Actor.Id * 17 + (int)d.Act * 7 + (int)d.Day) & 31)) / 31.0);
 
-                            double salience = recency * vivid * involvement * actWeight * (1.0 + Math.Min(2.0, Math.Abs(d.Amount)));
+                            double salience = recency * vivid * involvement * actWeight * focus * (1.0 + Math.Min(1.5, Math.Abs(d.Amount) * 0.5));
                             if (salience > bestSalience)
                             {
                                 bestSalience = salience;
@@ -197,8 +227,10 @@ namespace Anthro.Sim
                             var deed = mostSalient.Value.Deed;
                             string topic = Simulation.GodActTopic(deed.Act);
                             double target = isGood ? 1.0 : -1.0;
-                            double credulity = witness.M(MindTrait.Credulity);
-                            double weight = 0.15 * (0.4 + credulity * 0.8) * real;
+                            double involvementFactor = (deed.Actor == witness || deed.Target == witness)
+                                ? 2.5
+                                : (mostSalient.Value.Firsthand ? 0.65 : 0.20);
+                            double weight = 0.22 * receptivity * involvementFactor * Math.Max(0.25, real);
                             double current = witness.Expect.Get(topic, 0.0);
 
                             witness.Expect.Absorb(topic, target, weight, current);
@@ -213,16 +245,17 @@ namespace Anthro.Sim
                         }
 
                         // Striking events feed belief in the unseen power and update perceived disposition (GOD-LAYER §1)
-                        witness.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.08 * (0.4 + cred * 0.8), Simulation.GodReal(witness));
-                        witness.Expect.Absorb(Simulation.GodKindTopic, isGood ? 1.0 : -1.0, 0.06 * (0.4 + cred * 0.8) * real, Simulation.GodKind(witness));
+                        double eventStrength = (source == "Omen") ? 0.22 : 0.30;
+                        witness.Expect.Absorb(Simulation.GodRealTopic, signTarget, eventStrength * receptivity, Simulation.GodReal(witness));
+                        witness.Expect.Absorb(Simulation.GodKindTopic, isGood ? 1.0 : -1.0, 0.08 * receptivity * real, Simulation.GodKind(witness));
 
                         // Events while a plea is open count (brief B1): sign (belief up) or refusal (belief/kind down)
                         if (HasOpenPrayer(witness))
                         {
                             if (isGood)
                             {
-                                witness.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.10 * (0.4 + cred * 0.8), Simulation.GodAnswers(witness));
-                                witness.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.08 * (0.4 + cred * 0.8), Simulation.GodReal(witness));
+                                witness.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.15 * receptivity, Simulation.GodAnswers(witness));
+                                witness.Expect.Absorb(Simulation.GodRealTopic, Math.Max(signTarget, 0.75), 0.12 * receptivity, Simulation.GodReal(witness));
                             }
                             else
                             {

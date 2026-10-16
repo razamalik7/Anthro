@@ -300,7 +300,7 @@ namespace Anthro.Sim
             TellPlaces(mine, other);
             TellPlaces(other, mine);
             Contact(mine, other, 1);
-            SocialLearning.Exchange(mine, other, Rng);
+            SocialLearning.Exchange(mine, other, Rng, Region?.GodRng);
             Gossip(mine, other);
             PassOn(mine, other);
             PassOn(other, mine);

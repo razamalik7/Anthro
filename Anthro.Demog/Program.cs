@@ -86,10 +86,11 @@ region.YearEnded += all =>
             Console.WriteLine($"    culture [{t.Name}]: violence kin {A("bound:kin", 0.8):F2} friend {A("bound:friend", 0.8):F2} stranger {A("bound:neutral", 0.8):F2} outsider {A("bound:outsider", 0.8):F2} | honour {A("norm:honour", 0):F2} peacemaking {A("norm:peacemaking", 0.5):F2} | rationing {A("norm:rationing", 0.6):F2} demand {A("norm:demand", 0.3):F2} elders {A("norm:elders", 1):F2} hunting {A("norm:hunting", 0.4):F2} plural {A("wed:more", 0):F2}" + godCulture);
             if (!Simulation.Off("god"))
             {
+                bool Practicing(Person m) => m.LastThanksDay >= now0 - SimClock.DaysPerYear || m.LastPrayDay >= now0 - SimClock.DaysPerYear || m.OwnDeeds.Any(d => d.Deed.Day >= now0 - SimClock.DaysPerYear && d.Deed.Act == Act.Offer);
                 int skep = ms.Count(m => Simulation.GodReal(m) < 0.3);
                 int open = ms.Count(m => Simulation.GodReal(m) >= 0.3 && Simulation.GodReal(m) < 0.6);
-                int bel = ms.Count(m => Simulation.GodReal(m) >= 0.6 && Simulation.GodReal(m) < 0.8);
-                int dev = ms.Count(m => Simulation.GodReal(m) >= 0.8);
+                int dev = ms.Count(m => Simulation.GodReal(m) >= 0.8 && Practicing(m));
+                int bel = ms.Count - skep - open - dev;
                 double Sd(string k) { double avg = ms.Average(m => m.Expect.Get(k, 0.0)); return Math.Sqrt(ms.Average(m => Math.Pow(m.Expect.Get(k, 0.0) - avg, 2))); }
                 var camps = region.CampsOf(t).Where(c => c.Band.Members.Count >= 5).ToList();
                 double campSd = 0.0;
@@ -237,6 +238,6 @@ if (!Simulation.Off("god"))
     double ySim = Math.Max(1.0, region.Clock.Year);
     double pctBroke = region.DaysTotal > 0 ? (double)region.DaysBroke / region.DaysTotal : 0.0;
     var spentList = region.FavorSpentByPower.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{kv.Value / ySim:F2}");
-    Console.WriteLine($"FAVOR_AUDIT bot {region.Policy} earned/yr prayer:{region.FavorEarnedPrayer/ySim:F2} offer:{region.FavorEarnedOffer/ySim:F2} rite:{region.FavorEarnedRite/ySim:F2} other:{region.FavorEarnedOther/ySim:F2} | spent/yr {(spentList.Any() ? string.Join(" ", spentList) : "none")} | broke_pct {pctBroke*100:F1}% first_broke_day {region.FirstBrokeDay}");
+    Console.WriteLine($"FAVOR_AUDIT bot {region.Policy} earned/yr prayer:{region.FavorEarnedPrayer/ySim:F2} thank:{region.FavorEarnedThanks/ySim:F2} offer:{region.FavorEarnedOffer/ySim:F2} rite:{region.FavorEarnedRite/ySim:F2} other:{region.FavorEarnedOther/ySim:F2} | spent/yr {(spentList.Any() ? string.Join(" ", spentList) : "none")} | broke_pct {pctBroke*100:F1}% first_broke_day {region.FirstBrokeDay}");
 }
 }

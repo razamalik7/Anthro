@@ -461,32 +461,43 @@ namespace Anthro.Sim.Activities
                     if (sickNeed > maxNeed) { maxNeed = sickNeed; bestNeed = PrayerNeed.Sickness; }
                     if (fearNeed > maxNeed) { maxNeed = fearNeed; bestNeed = PrayerNeed.Danger; }
 
-                    if (maxNeed > 0.1)
+                    bool signOrBeliever = p.LastGodSignDay >= 0 || real > 0.40 || sim.Region.Favor <= 5.0;
+                    double minNeed = signOrBeliever ? 0.10 : 0.90;
+                    if (maxNeed > minNeed)
                     {
                         double score = maxNeed * real * answers;
-                        options.Add(new Option(Verb.Pray, score, () => new Pray(p, bestNeed, sickTarget)));
+                        double minScore = signOrBeliever ? 0.005 : 0.100;
+                        if (score > minScore)
+                            options.Add(new Option(Verb.Pray, score, () => new Pray(p, bestNeed, sickTarget)));
                     }
                 }
             }
 
             // Everyday devotion: thanksgiving in good/comfortable times (D1 owner decision 2026-10-13)
-            // Value = belief * learned return of thanking (god:thank)
-            if (!Simulation.Off("god") && !Simulation.Off("pray") && maturity > 0.3 && Simulation.AtCamp(p) && p.Satiety >= 0.5 && p.Health >= 0.6 && clock.Day != p.LastThanksDay)
+            // Value = belief * learned return of thanking (god:thank) scaled by current wellbeing
+            if (!Simulation.Off("god") && !Simulation.Off("pray") && maturity > 0.3 && Simulation.AtCamp(p) && p.Satiety >= 0.55 && p.Health >= 0.6 && clock.Day - p.LastThanksDay >= 14)
             {
                 double real = Simulation.GodReal(p);
                 double thankReturn = Simulation.GodThank(p);
-                if (real > 0.1 && thankReturn > 0.0)
+                if (real > 0.12 && thankReturn > 0.025 && ((p.LastGodSignDay >= 0 && clock.Day - p.LastGodSignDay <= 360) || thankReturn > 0.30))
                 {
-                    double thankScore = real * thankReturn * 0.5;
-                    if (thankScore > 0.02)
+                    double foodComfort = Math.Min(1.2, (home.DaysOfFood / 2.5) * 0.7 + Math.Max(0.0, (p.Satiety - 0.5) * 1.2));
+                    double thankPull = real * thankReturn * (0.45 + 0.65 * foodComfort) * (1.0 - hunger * 0.7);
+                    double thankScore = -0.22 + 2.2 * thankPull;
+                    if (thankScore > -0.20)
                     {
-                        options.Add(new Option(Verb.Pray, thankScore, () => new Pray(p, PrayerNeed.Thanks)));
+                        options.Add(new Option(Verb.Pray, thankScore, () =>
+                        {
+                            p.LastThanksDay = clock.Day;
+                            return new Pray(p, PrayerNeed.Thanks);
+                        }));
                     }
                 }
             }
 
             // Offer to the god: give up food/goods at a sacred spot or hearth
             // Path 1: Learned offering habit (value = belief * Felt(learned return) * scale; sized by means).
+            //         An offering is a communal feast: held at most once per camp per 6 days, when not already stuffed.
             // Path 2: Escalated plea (B2 owner decision 2026-10-12): When a prayer is open, the need is desperate
             //         and the plea is going unanswered, the person adds a gift to the plea.
             //         Value = desperation * belief, an improvisation bargaining with the unseen.
@@ -499,9 +510,9 @@ namespace Anthro.Sim.Activities
                     double offerAmount = 0.0;
                     Prayer? escalatedPrayer = null;
 
-                    // Path 1: Learned offering habit
+                    // Path 1: Learned offering habit (communal shared feast)
                     double learned = Simulation.GodOffer(p);
-                    if (learned > 0.0 && home.Food.Total >= 2.0 && home.DaysOfFood >= 2.0)
+                    if (learned > 0.0 && (p.LastGodSignDay >= 0 || real > 0.50) && home.Food.Total >= 2.5 && home.DaysOfFood >= 2.5 && sim.Clock.Day - sim.LastOfferFeastDay >= 6 && p.Stomach < 0.85)
                     {
                         double feltReturn = Simulation.Felt(learned);
                         double kind = Simulation.GodKind(p);
@@ -511,13 +522,13 @@ namespace Anthro.Sim.Activities
                         else if (kind < 0)
                             scale += Math.Abs(kind) * p.W(Drive.Safety);
 
-                        offerScore = real * feltReturn * scale * (home.DaysOfFood > 4.0 ? 1.0 : 0.5);
-                        offerAmount = Math.Min(2.0, home.Food.Total * 0.15);
+                        offerScore = real * feltReturn * scale * (home.DaysOfFood > 4.0 ? 0.28 : 0.18);
+                        offerAmount = Math.Min(1.5, home.Food.Total * 0.12);
                     }
 
                     // Path 2: Escalated plea (B2)
                     Prayer? openPrayer = sim.Region.ActivePrayers.FirstOrDefault(pr => pr.Asker == p && !pr.Resolved);
-                    if (openPrayer != null && sim.Clock.Day > openPrayer.StartDay)
+                    if (openPrayer != null && !openPrayer.HasOffering && sim.Clock.Day > openPrayer.StartDay)
                     {
                         double desperation = 0.0;
                         if (openPrayer.Need == PrayerNeed.Hunger)
@@ -545,6 +556,7 @@ namespace Anthro.Sim.Activities
                     {
                         options.Add(new Option(Verb.Offer, offerScore, () =>
                         {
+                            sim.LastOfferFeastDay = sim.Clock.Day;
                             if (escalatedPrayer != null && !escalatedPrayer.Resolved)
                             {
                                 escalatedPrayer.HasOffering = true;

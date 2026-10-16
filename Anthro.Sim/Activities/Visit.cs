@@ -130,7 +130,7 @@ namespace Anthro.Sim.Activities
             sim.Contact(P, _with, 1);
             if (--_talkHours > 0) return;
 
-            SocialLearning.Exchange(P, _with, sim.Rng);
+            SocialLearning.Exchange(P, _with, sim.Rng, sim.Region?.GodRng);
             sim.Gossip(P, _with);
             sim.PassOn(P, _with);
             sim.PassOn(_with, P);
