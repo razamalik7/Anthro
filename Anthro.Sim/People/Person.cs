@@ -76,6 +76,7 @@ namespace Anthro.Sim.People
         public double AppeasementDread { get; set; } = 0.0;
         public long LastGodSignDay { get; set; } = -1;
         public long LastThanksDay { get; set; } = -99999;
+        public double ThanksUrge { get; set; } = 0.0;
         public long LastPrayDay { get; set; } = -99999;
 
         public double ConsumeNudgeWeight(string fork, double basePush = 0.5, params string[] targetChoices)

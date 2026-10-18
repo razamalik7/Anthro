@@ -40,7 +40,30 @@ namespace Anthro.Sim
         public const double StartFavorPool = 50.0;
 
         public double Favor { get; set; } = StartFavorPool;
-        public double Reputation { get; set; } = 0.0;
+        double _godHelp;
+        double _godHarm;
+        /// <summary>C1: Total actual help done to people (bounties, softened seasons, blessed births, healings).</summary>
+        public double GodHelp
+        {
+            get => _godHelp;
+            set => _godHelp = Math.Max(0.0, value);
+        }
+        /// <summary>C1: Total actual harm/wrath done to people (harsh seasons, lightning deaths, wrathful strikes).</summary>
+        public double GodHarm
+        {
+            get => _godHarm;
+            set => _godHarm = Math.Max(0.0, value);
+        }
+        /// <summary>Net help minus harm (kept for compatibility with T0-T9 tests).</summary>
+        public double Reputation
+        {
+            get => _godHelp - _godHarm;
+            set
+            {
+                if (value >= 0) { _godHelp = value; _godHarm = 0; }
+                else { _godHarm = -value; _godHelp = 0; }
+            }
+        }
         public double SustainableFavorFactor { get; set; } = 4.0;
         public double FavorLeakRate { get; set; } = 0.02;
         public double FavorCapFactor { get; set; } = 4.0;
@@ -128,14 +151,14 @@ namespace Anthro.Sim
         public bool CanCastHeal(Person person) =>
             person != null && person.Alive &&
             !Simulation.Off("god") && !Simulation.Off("power") && !Simulation.Off("heal") &&
-            Reputation >= 4.0 &&
+            GodHelp >= 4.0 &&
             People.Count(Simulation.IsBeliever) >= 5 &&
             (Clock.Day - LastHealDay >= 3600);
 
         public bool CanCastLightning(Person person) =>
             person != null && person.Alive &&
             !Simulation.Off("god") && !Simulation.Off("power") && !Simulation.Off("lightning") &&
-            Reputation <= -4.0 &&
+            GodHarm >= 4.0 &&
             People.Count(Simulation.IsBeliever) >= 5 &&
             (Clock.Day - LastLightningDay >= 3600);
 
@@ -162,10 +185,10 @@ namespace Anthro.Sim
                 double cost = cmd.Cost;
                 bool isBlessing = cmd.PowerName == "BountyPlant" || cmd.PowerName == "BountyAnimal" || cmd.PowerName == "BlessedBirth" || cmd.PowerName == "Heal";
                 bool isWrath = cmd.PowerName == "Omen" || cmd.PowerName == "Lightning";
-                if (isBlessing && Reputation > 0)
-                    cost *= Math.Max(0.7, 1.0 - Reputation * 0.03);
-                else if (isWrath && Reputation < 0)
-                    cost *= Math.Max(0.7, 1.0 - Math.Abs(Reputation) * 0.03);
+                if (isBlessing && GodHelp > 0)
+                    cost *= Math.Max(0.7, 1.0 - Math.Min(10.0, GodHelp) * 0.03);
+                else if (isWrath && GodHarm > 0)
+                    cost *= Math.Max(0.7, 1.0 - Math.Min(10.0, GodHarm) * 0.03);
 
                 if (Favor >= cost)
                 {
@@ -189,7 +212,8 @@ namespace Anthro.Sim
             public void Execute(Region region)
             {
                 if (Simulation.Off("god") || Simulation.Off("power") || Simulation.Off("omen")) return;
-                region.Reputation = Math.Max(-10.0, Math.Min(10.0, region.Reputation + (_isGood ? 0.5 : -0.5)));
+                if (_isGood) region.GodHelp += 0.5;
+                else region.GodHarm += 0.5;
                 region.Chronicle.Write(region.Clock, Importance.Notable, $"A striking omen appeared near ({_x}, {_y}): {_desc}.");
                 region.GodEvents.Add(new GodEvent(region.Clock.Tick, "Omen", _desc, _x, _y));
                 region.InterpretStrikingEvent(_x, _y, isGood: _isGood, "Omen");
@@ -206,7 +230,7 @@ namespace Anthro.Sim
             public void Execute(Region region)
             {
                 if (Simulation.Off("god") || Simulation.Off("power") || Simulation.Off("bounty")) return;
-                region.Reputation += 1.0;
+                region.GodHelp += 1.0;
                 if (!_animals)
                 {
                     double r = WorldMap.FromMeters(3000);
@@ -275,7 +299,7 @@ namespace Anthro.Sim
                     climate.Berries = Math.Max(climate.Berries, climate.Berries * (1.0 + 0.3 * _delta));
                     climate.Grain = Math.Max(climate.Grain, climate.Grain * (1.0 + 0.3 * _delta));
                     climate.FishRun = Math.Max(climate.FishRun, climate.FishRun * (1.0 + 0.3 * _delta));
-                    region.Reputation += 1.5;
+                    region.GodHelp += 1.5;
                     region.Chronicle.Write(region.Clock, Importance.Notable, $"The heavens softened the season ({_season}).");
                 }
                 else
@@ -284,7 +308,7 @@ namespace Anthro.Sim
                     climate.Berries = Math.Max(0.2, climate.Berries * (1.0 + 0.3 * _delta));
                     climate.Grain = Math.Max(0.2, climate.Grain * (1.0 + 0.3 * _delta));
                     climate.FishRun = Math.Max(0.2, climate.FishRun * (1.0 + 0.3 * _delta));
-                    region.Reputation -= 1.5;
+                    region.GodHarm += 1.5;
                     region.Chronicle.Write(region.Clock, Importance.Notable, $"A bitter harshness gripped the land ({_season}).");
                 }
                 region.GodEvents.Add(new GodEvent(region.Clock.Tick, "Weather", $"Weather changed for {_season} (delta {_delta:F1})"));
@@ -303,7 +327,7 @@ namespace Anthro.Sim
                 if (Simulation.Off("god") || Simulation.Off("power") || Simulation.Off("bless")) return;
                 region.LastBlessedBirthDay = region.Clock.Day;
                 _mother.BlessedNextBirth = true;
-                region.Reputation += 1.5;
+                region.GodHelp += 1.5;
                 region.Chronicle.Write(region.Clock, Importance.Notable, $"A divine blessing was laid upon {_mother.Name}'s unborn child.");
                 var band = region.BandOf(_mother);
                 int bx = band != null ? (int)band.Band.CampX : 0;
@@ -364,7 +388,7 @@ namespace Anthro.Sim
             {
                 if (!region.CanCastHeal(_target)) return;
                 region.LastHealDay = region.Clock.Day;
-                region.Reputation = Math.Min(10.0, region.Reputation + 1.0);
+                region.GodHelp += 1.0;
                 _target.Illness = null;
                 _target.Injury = 0.0;
                 _target.Health = Math.Max(_target.Health, 0.85);
@@ -390,7 +414,7 @@ namespace Anthro.Sim
             {
                 if (!region.CanCastLightning(_target)) return;
                 region.LastLightningDay = region.Clock.Day;
-                region.Reputation = Math.Max(-10.0, region.Reputation - 1.0);
+                region.GodHarm += 1.5;
 
                 var band = region.BandOf(_target);
                 int bx = band != null ? (int)band.Band.CampX : (int)_target.X;

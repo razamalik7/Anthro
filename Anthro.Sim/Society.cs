@@ -273,6 +273,15 @@ namespace Anthro.Sim
         {
             if (!Off("selfmemory")) Remember(deed.Actor, deed, true);
             var seen = Witness(deed);
+            if (seen.Count > 0 || deed.Act == Act.Offer)
+            {
+                if (deed.Act == Act.Give) { LastWitnessedGiveTick = Clock.Tick; LastGiveDay = Clock.Day; }
+                else if (deed.Act == Act.Take) { LastWitnessedTheftTick = Clock.Tick; LastWitnessedWrongdoer = deed.Actor; }
+                else if (deed.Act == Act.Attack) { LastWitnessedAttackTick = Clock.Tick; LastWitnessedWrongdoer = deed.Actor; }
+                else if (deed.Act == Act.Offer) { LastWitnessedOfferTick = Clock.Tick; LastOfferDay = Clock.Day; }
+                if (deed.Act == Act.Give || deed.Act == Act.Take || deed.Act == Act.Attack || deed.Act == Act.Offer || deed.Act == Act.Refuse)
+                    LastWitnessedDeed = deed;
+            }
             foreach (var w in seen) Feel(w, deed, 1);
             Narrate(deed, seen);
             return seen;
@@ -432,6 +441,7 @@ namespace Anthro.Sim
             double pull = theirHunger * (0.4 + giver.M(MindTrait.Warmth))
                           + (rel == Relation.Kin ? 0.6 : 0) + giver.GetAffinity(asker) * 0.5
                           + Expects(giver, Act.Give, rel) - Expects(giver, Act.Refuse, rel)
+                          + GodActValue(giver, Act.Give) - GodActValue(giver, Act.Refuse)
                           - giver.GetGrievance(asker) * 0.3
                           - Inheritance.Clamp01(1 - home.DaysOfFood / 4) * 0.8
                           + Rng.Normal(0, 0.1);
@@ -572,7 +582,6 @@ namespace Anthro.Sim
             var rel = RelationTo(taker, hearth);
             var deed = new Deed { Day = Clock.Day, Actor = taker, Act = Act.Take, Target = owner, Hearth = hearth, Amount = took };
             var seen = Happen(deed);
-            if (seen.Count > 0) LastWitnessedTheftTick = Clock.Tick;
             deed.Context = Lesson(Act.Take, rel, seen.Count > 0);
             deed.Payoff = took;
             Learn(taker, deed.Context, took, CulturalDefault(Act.Take, rel, seen.Count > 0));
@@ -758,12 +767,13 @@ namespace Anthro.Sim
                 {
                     if (kv.Key == "god:real")
                     {
-                        double v = System.Math.Clamp(0.06 + 0.34 * cred + System.Math.Max(0, kv.Value - 0.25) * 0.35 * cred, 0.06, 0.55);
+                        double baseSeed = Math.Clamp(0.08 + 0.28 * cred, 0.08, 0.32);
+                        double v = Math.Clamp(baseSeed * (1.0 - 0.65 * cred) + kv.Value * (0.65 * cred + 0.20), 0.06, 0.92);
                         child.Expect.Absorb(kv.Key, v, 1, v);
                     }
                     else
                     {
-                        double v = kv.Value * 0.5 * (0.4 + 0.8 * cred);
+                        double v = kv.Value * (0.50 + 0.40 * cred);
                         child.Expect.Absorb(kv.Key, v, 1, v);
                     }
                 }

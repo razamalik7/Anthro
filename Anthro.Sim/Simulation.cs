@@ -56,6 +56,13 @@ namespace Anthro.Sim
         public readonly Band Band = new Band();
         public DiscoveryWeb? Web => Region.Web;
         public long LastWitnessedTheftTick = -99999;
+        public long LastWitnessedGiveTick = -99999;
+        public long LastWitnessedAttackTick = -99999;
+        public long LastWitnessedOfferTick = -99999;
+        public long LastOfferDay = -99999;
+        public long LastGiveDay = -99999;
+        public Person? LastWitnessedWrongdoer;
+        public Deed? LastWitnessedDeed;
         public long LastBountyDay = -99999;
 
         /// <summary>
@@ -92,7 +99,7 @@ namespace Anthro.Sim
 
         /// <summary>Best plant patches near camp, refreshed daily so foragers don't each scan the map.</summary>
         public readonly List<Cell> ForagePatches = new List<Cell>();
-        public long LastOfferFeastDay = -99999;
+        public double OfferUrge;
 
         public YearStats ThisYear { get; private set; } = new YearStats();
         public event Action<YearStats>? YearEnded;
@@ -375,6 +382,13 @@ namespace Anthro.Sim
             if (Clock.Day % 7 == 0) TendGrain();
             if (Clock.Day % 7 == 0) SeekCompany();
             Gathering();
+            if (!Off("god") && !Off("offer") && Band.Members.Count > 0)
+            {
+                double campPull = Band.Members.Where(Grown)
+                    .Select(m => GodReal(m) * Math.Max(0.0, GodOffer(m)) + m.Dread * 0.25)
+                    .DefaultIfEmpty(0.0).Average();
+                OfferUrge = Math.Min(2.0, OfferUrge + campPull * 0.45);
+            }
             if (Clock.Day % 7 == 0) foreach (var m in Band.Members) m.Map.Fade(Clock.Day, MapCapacity(m));
             using (Profiler.Measure("daily wolves")) WolvesNearCamp();
             using (Profiler.Measure("daily patches")) RefreshForagePatches();
@@ -727,10 +741,17 @@ namespace Anthro.Sim
             {
                 var adults = Band.Members.Where(m => m.IsAdult(Clock)).ToList();
                 var giver = adults.OrderByDescending(m => m.IsKin(p) ? 2 : (m.Spouses.Contains(p) ? 3 : 1)).FirstOrDefault();
-                if (giver != null)
+                if (giver != null && (GodReal(giver) > 0.22 || GodOffer(giver) > 0.05))
                 {
                     var h = HomeOf(giver) ?? HomeOf(p);
-                    double giftAmount = (h != null && h.Food.Total >= 0.5) ? Math.Min(1.0, h.Food.Total * 0.1) : (Band.Materials.Tools >= 1 ? 1.0 : 0.0);
+                    double giftAmount = 0.0;
+                    if (h != null && h.Food.Total >= 1.0)
+                        giftAmount = h.Food.Take(Math.Min(0.5, h.Food.Total * 0.08), out _);
+                    else if (Band.Materials.Tools >= 1)
+                    {
+                        Band.Materials.Tools -= 1;
+                        giftAmount = 0.5;
+                    }
 
                     if (giftAmount > 0.0)
                     {

@@ -36,6 +36,18 @@ all_batches = [
     # T11 God goes quiet
     ("quiet", 41, 60, ["ANTHRO_GOD=quiet", "ANTHRO_OFF="]),
     ("quiet2", 61, 80, ["ANTHRO_GOD=quiet", "ANTHRO_OFF="]),
+    
+    # Pattern Bots (T10C)
+    ("charity", 41, 60, ["ANTHRO_GOD=charity", "ANTHRO_OFF="]),
+    ("charity2", 61, 80, ["ANTHRO_GOD=charity", "ANTHRO_OFF="]),
+    ("demanding", 41, 60, ["ANTHRO_GOD=demanding", "ANTHRO_OFF="]),
+    ("demanding2", 61, 80, ["ANTHRO_GOD=demanding", "ANTHRO_OFF="]),
+    ("malevolent", 41, 60, ["ANTHRO_GOD=malevolent", "ANTHRO_OFF="]),
+    ("malevolent2", 61, 80, ["ANTHRO_GOD=malevolent", "ANTHRO_OFF="]),
+    ("stern", 41, 60, ["ANTHRO_GOD=stern", "ANTHRO_OFF="]),
+    ("stern2", 61, 80, ["ANTHRO_GOD=stern", "ANTHRO_OFF="]),
+    ("capricious", 41, 60, ["ANTHRO_GOD=capricious", "ANTHRO_OFF="]),
+    ("capricious2", 61, 80, ["ANTHRO_GOD=capricious", "ANTHRO_OFF="]),
 ]
 
 def run_world(args):

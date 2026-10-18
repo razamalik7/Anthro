@@ -70,31 +70,20 @@ namespace Anthro.Sim
             }
         }
 
-        /// <summary>
-        /// How strongly ambient signs (omens, bounties, weather) can convince this person based on their
-        /// innate credulity and spiritual interest. Direct personal miracles (own answered plea, own healing)
-        /// can still reach 0.95 and convert even a low-credulity skeptic (D3).
-        /// </summary>
-        public static double TemperamentSignTarget(Person p)
-        {
-            double spiritPull = p.M(MindTrait.Credulity) + 0.25 * (p.I(Interest.Spirits) - 0.5);
-            return Math.Clamp(0.32 + (spiritPull - 0.34) * 2.15, 0.14, 0.98);
-        }
-
         static readonly string[] _moralGodActTopics = { "god:take", "god:give", "god:attack", "god:refuse", "god:ask", "god:confront" };
 
         /// <summary>
-        /// Faith fades without signs: god:real relaxes slowly toward a temperament-grounded baseline (~0.06 to 0.22),
+        /// Faith fades without signs: god:real relaxes slowly toward a temperament-grounded baseline (~0.05 to 0.28),
         /// faster for the less credulous (D3 / Owner Target 5).
-        /// Offerings and thanksgivings that go unanswered erode slowly, like prayers.
+        /// Offerings and thanksgivings that go unanswered erode slowly and continuously, like prayers.
         /// Tiny daily adjustment in the daily person update.
         /// </summary>
         public void FadeBelief(Person p)
         {
             if (Off("god") || Off("belief")) return;
             double cred = p.M(MindTrait.Credulity);
-            double restReal = Math.Clamp(0.06 + 0.34 * cred, 0.06, 0.33);
-            double fadeRate = 0.00030 * Math.Pow(Math.Clamp((1.15 - cred) / 0.65, 0.35, 1.9), 1.3);
+            double restReal = Math.Clamp(0.06 + 0.32 * cred, 0.06, 0.34);
+            double fadeRate = 0.00035 * Math.Pow(Math.Clamp((1.15 - cred) / 0.65, 0.35, 2.0), 1.4);
             p.Expect.Absorb(GodRealTopic, restReal, fadeRate, restReal);
 
             // Moral act attributions relax slowly unless refreshed by new deeds + signs, preserving personal variation
@@ -105,28 +94,31 @@ namespace Anthro.Sim
                     p.Expect.Absorb(topic, 0.0, 0.0006, val);
             }
 
-            // Offerings that go unanswered erode slowly, like prayers (T10 A3: no 14-day window)
+            // Offerings that go unanswered erode daily, like prayers (T10 A3: no timers)
             double offerBelief = GodOffer(p);
             if (offerBelief > 0)
             {
-                // Baseline slow decay if unfed by signs
-                double decay = 0.0012;
-                // Faster erosion if an offering was made and went unanswered for over a month
-                if (p.OwnDeeds.Any(d => d.Deed.Act == Act.Offer && d.Deed.Day > p.LastGodSignDay && Clock.Day - d.Deed.Day > 30))
-                    decay = 0.008;
-                else if (p.Deeds.Any(d => d.Deed.Act == Act.Offer && d.Deed.Day > p.LastGodSignDay && Clock.Day - d.Deed.Day > 30))
-                    decay = 0.004;
-
+                bool unansweredOwn = p.OwnDeeds.Any(d => d.Deed.Act == Act.Offer && d.Deed.Day > p.LastGodSignDay);
+                bool unansweredSeen = !unansweredOwn && p.Deeds.Any(d => d.Deed.Act == Act.Offer && d.Deed.Day > p.LastGodSignDay);
+                double decay = unansweredOwn ? 0.004 : (unansweredSeen ? 0.002 : 0.0008);
                 p.Expect.Absorb(GodOfferTopic, 0.0, decay, offerBelief);
             }
 
-            // D1: Everyday devotion relaxes slowly toward ember baseline (~0.02) if unfed by signs/fortune;
-            // faster if a thanks was given and a full season passed without any sign.
-            double thankBelief = GodThank(p);
-            if (thankBelief > 0.02)
+            // D1: Everyday devotion urge grows when fed and well; unanswered thanks erode daily without signs
+            if (!Off("pray") && p.Satiety >= 0.55 && p.Health >= 0.6)
             {
-                double thankDecay = (p.LastThanksDay > p.LastGodSignDay && Clock.Day - p.LastThanksDay > Core.SimClock.DaysPerSeason) ? 0.003 : 0.0004;
-                p.Expect.Absorb(GodThankTopic, 0.02, thankDecay, thankBelief);
+                double real = GodReal(p);
+                double thank = Math.Max(0.0, GodThank(p));
+                // Urge grows from faith and learned gratitude, slightly faster after recent signs, slower when over-comfortable
+                double signFreshness = (p.LastGodSignDay >= 0) ? Math.Exp(-(Clock.Day - p.LastGodSignDay) / 90.0) : 0.15;
+                p.ThanksUrge = Math.Min(2.0, p.ThanksUrge + real * thank * (0.35 + 0.65 * signFreshness));
+            }
+            double thankBelief = GodThank(p);
+            if (thankBelief > 0.01)
+            {
+                bool unansweredThanks = p.LastThanksDay > p.LastGodSignDay;
+                double thankDecay = unansweredThanks ? 0.0020 * (1.2 - 0.5 * cred) : 0.0005 * (1.2 - 0.5 * cred);
+                p.Expect.Absorb(GodThankTopic, 0.01, thankDecay, thankBelief);
             }
 
             // Learning from relief (T10 A2): dread fades continuously; easing dread credits appeasement

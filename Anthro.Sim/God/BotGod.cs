@@ -12,18 +12,16 @@ namespace Anthro.Sim
         Cruel,
         Random,
         Skilful,
-        Quiet
+        Quiet,
+        Charity,
+        Demanding,
+        Malevolent,
+        Stern,
+        Capricious
     }
 
     /// <summary>
-    /// Autonomous bot god policies for headless simulation, testing, and comparative analysis (T7, T9C).
-    /// Policies:
-    /// - None: No divine intervention; baseline prayer fading.
-    /// - Kind: Answers prayers with bounties/relief, eases harsh winters, fosters trust, heals when unlocked.
-    /// - Cruel: Ignores pleas for relief, displays terrifying omens and harshens winters, strikes lightning when unlocked.
-    /// - Random: Capricious, mixed benevolence and wrath.
-    /// - Skilful: Intervenes at the right moments (harsh winter mitigation, starving camp relief, theft omens, sparing blessings, heal).
-    /// - Quiet: Active skilful for 25 years, then idle for 25 years (T11 owner target).
+    /// Autonomous bot god policies for headless simulation, testing, and comparative analysis (T7, T9C, T10C).
     /// </summary>
     public static class BotGod
     {
@@ -40,6 +38,11 @@ namespace Anthro.Sim
             "random" => GodPolicy.Random,
             "skilful" or "skillful" => GodPolicy.Skilful,
             "quiet" => GodPolicy.Quiet,
+            "charity" => GodPolicy.Charity,
+            "demanding" => GodPolicy.Demanding,
+            "malevolent" => GodPolicy.Malevolent,
+            "stern" => GodPolicy.Stern,
+            "capricious" => GodPolicy.Capricious,
             _ => GodPolicy.None
         };
 
@@ -66,6 +69,21 @@ namespace Anthro.Sim
                 case GodPolicy.Quiet:
                     if (region.Clock.Year < 25)
                         StepSkilful(region);
+                    break;
+                case GodPolicy.Charity:
+                    StepCharity(region);
+                    break;
+                case GodPolicy.Demanding:
+                    StepDemanding(region);
+                    break;
+                case GodPolicy.Malevolent:
+                    StepMalevolent(region);
+                    break;
+                case GodPolicy.Stern:
+                    StepStern(region);
+                    break;
+                case GodPolicy.Capricious:
+                    StepCapricious(region);
                     break;
             }
         }
@@ -389,6 +407,269 @@ namespace Anthro.Sim
                 if (mother != null)
                 {
                     region.CastBlessedBirth(mother);
+                }
+            }
+        }
+
+        static void StepCharity(Region region)
+        {
+            // Responds to witnessed sharing within ~1 day (24 ticks)
+            foreach (var b in region.Bands)
+            {
+                if (b.Band.Members.Count == 0) continue;
+                if (region.Clock.Tick - b.LastWitnessedGiveTick <= 24)
+                {
+                    if (region.Favor >= 25.0 && region.Clock.Day - b.LastBountyDay >= 60)
+                    {
+                        bool isWinter = region.Clock.Season == Season.Winter;
+                        region.CastBounty((int)b.Band.CampX, (int)b.Band.CampY, animals: isWinter);
+                        b.LastBountyDay = region.Clock.Day;
+                        b.LastWitnessedGiveTick = -99999;
+                    }
+                    else if (region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 6)
+                    {
+                        region.CastOmen((int)b.Band.CampX, (int)b.Band.CampY, "A warm light settled over the sharing hearth", isGood: true);
+                        region.LastOmenSignDay = region.Clock.Day;
+                        b.LastWitnessedGiveTick = -99999;
+                    }
+                }
+            }
+
+            // Answers open prayers with signs
+            var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted);
+            if (unhelped != null && region.Favor >= 15.0 && region.Clock.Day - region.LastOmenSignDay >= 8)
+            {
+                region.CastOmen(unhelped.CampX, unhelped.CampY, "A gentle sign answered the plea of generous hands", isGood: true);
+                unhelped.LastSignDay = region.Clock.Day;
+                region.LastOmenSignDay = region.Clock.Day;
+            }
+
+            // Soften harsh winter
+            if ((region.Clock.Season == Season.Autumn || (region.Clock.Season == Season.Winter && region.Clock.DayOfSeason < 30)) && region.Clock.Hour == 12)
+            {
+                if (region.Clock.Day - region.LastWeatherDay >= 360 && region.World.Climate.WinterSeverity > 0.0 && region.Favor >= 80.0)
+                {
+                    region.CastWeather(Season.Winter, -0.4);
+                    region.LastWeatherDay = region.Clock.Day;
+                }
+            }
+
+            // Heal when unlocked (GodHelp >= 4.0)
+            if (region.GodHelp >= 4.0 && region.Favor >= 65.0)
+            {
+                var sick = region.People.FirstOrDefault(p => p.Alive && p.Illness != null && p.Health < 0.55 && region.CanCastHeal(p));
+                if (sick != null)
+                {
+                    region.CastHeal(sick);
+                }
+            }
+        }
+
+        static void StepDemanding(Region region)
+        {
+            // Responds to witnessed offerings within ~2 days (48 ticks)
+            foreach (var b in region.Bands)
+            {
+                if (b.Band.Members.Count == 0) continue;
+                if (region.Clock.Tick - b.LastWitnessedOfferTick <= 48)
+                {
+                    if (region.Favor >= 25.0 && region.Clock.Day - b.LastBountyDay >= 60)
+                    {
+                        bool isWinter = region.Clock.Season == Season.Winter;
+                        region.CastBounty((int)b.Band.CampX, (int)b.Band.CampY, animals: isWinter);
+                        b.LastBountyDay = region.Clock.Day;
+                        b.LastWitnessedOfferTick = -99999;
+                    }
+                    else if (region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 4)
+                    {
+                        region.CastOmen((int)b.Band.CampX, (int)b.Band.CampY, "Sacred smoke rose sweet into the calm sky", isGood: true);
+                        region.LastOmenSignDay = region.Clock.Day;
+                        b.LastWitnessedOfferTick = -99999;
+                    }
+                }
+            }
+
+            // Answers prayers if accompanied by offering
+            var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted && p.HasOffering);
+            if (unhelped != null && region.Favor >= 15.0 && region.Clock.Day - region.LastOmenSignDay >= 6)
+            {
+                region.CastOmen(unhelped.CampX, unhelped.CampY, "The god accepted the offering and answered the plea", isGood: true);
+                unhelped.LastSignDay = region.Clock.Day;
+                region.LastOmenSignDay = region.Clock.Day;
+            }
+
+            // Hardship when offerings lapse (> 35 days without offering)
+            if (region.Clock.Hour == 12)
+            {
+                foreach (var b in region.Bands)
+                {
+                    if (b.Band.Members.Count == 0) continue;
+                    long lapse = b.LastOfferDay < 0 ? region.Clock.Day : (region.Clock.Day - b.LastOfferDay);
+                    if (lapse > 35)
+                    {
+                        if (region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 14)
+                        {
+                            region.CastOmen((int)b.Band.CampX, (int)b.Band.CampY, "A shadow fell over the silent altar; the god hungers for tribute", isGood: false);
+                            region.LastOmenSignDay = region.Clock.Day;
+                            break;
+                        }
+                    }
+                }
+
+                bool anyLapsed = region.Bands.Any(b => b.Band.Members.Count > 0 && (b.LastOfferDay < 0 ? region.Clock.Day : region.Clock.Day - b.LastOfferDay) > 35);
+                if (anyLapsed && (region.Clock.Season == Season.Autumn || (region.Clock.Season == Season.Winter && region.Clock.DayOfSeason < 30)))
+                {
+                    if (region.Clock.Day - region.LastWeatherDay >= 360 && region.Favor >= 80.0)
+                    {
+                        region.CastWeather(Season.Winter, +0.3);
+                        region.LastWeatherDay = region.Clock.Day;
+                    }
+                }
+                else if (!anyLapsed && (region.Clock.Season == Season.Autumn || (region.Clock.Season == Season.Winter && region.Clock.DayOfSeason < 30)))
+                {
+                    if (region.Clock.Day - region.LastWeatherDay >= 360 && region.Favor >= 80.0 && region.World.Climate.WinterSeverity > 0.0)
+                    {
+                        region.CastWeather(Season.Winter, -0.3);
+                        region.LastWeatherDay = region.Clock.Day;
+                    }
+                }
+            }
+        }
+
+        static void StepMalevolent(Region region)
+        {
+            // Sends periodic wrathful omens, harsh seasons, and Lightning (when unlocked),
+            // but holds back its wrath for ~30 days for any camp that makes an offering.
+            if (region.Clock.Hour == 12)
+            {
+                var unappeasedBands = region.Bands
+                    .Where(b => b.Band.Members.Count > 0 && (b.LastOfferDay < 0 || region.Clock.Day - b.LastOfferDay > 30))
+                    .ToList();
+
+                if (unappeasedBands.Count > 0)
+                {
+                    // Lightning when unlocked (GodHarm >= 4.0 and Favor >= 40.0)
+                    if (region.GodHarm >= 4.0 && region.Favor >= 40.0 && region.Clock.Day - region.LastLightningDay >= 90)
+                    {
+                        var target = unappeasedBands
+                            .SelectMany(b => b.Band.Members)
+                            .Where(m => m.Alive && region.CanCastLightning(m))
+                            .OrderByDescending(m => m.AgeYears(region.Clock))
+                            .FirstOrDefault();
+                        if (target != null)
+                        {
+                            region.CastLightning(target);
+                        }
+                    }
+
+                    // Wrathful omens
+                    if (region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 16)
+                    {
+                        var camp = unappeasedBands[region.GodRng.Range(0, unappeasedBands.Count)];
+                        region.CastOmen((int)camp.Band.CampX, (int)camp.Band.CampY, "Dark clouds gathered in malice over the negligent camp", isGood: false);
+                        region.LastOmenSignDay = region.Clock.Day;
+                    }
+
+                    // Harsh winter
+                    if ((region.Clock.Season == Season.Autumn || (region.Clock.Season == Season.Winter && region.Clock.DayOfSeason < 30))
+                        && region.Clock.Day - region.LastWeatherDay >= 360 && region.Favor >= 80.0)
+                    {
+                        region.CastWeather(Season.Winter, +0.4);
+                        region.LastWeatherDay = region.Clock.Day;
+                    }
+                }
+            }
+
+            // If an unhelped prayer included an offering, the malevolent god relents with a sign
+            var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted && p.HasOffering);
+            if (unhelped != null && region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 8)
+            {
+                region.CastOmen(unhelped.CampX, unhelped.CampY, "The offering placated the dark presence", isGood: true);
+                unhelped.LastSignDay = region.Clock.Day;
+                region.LastOmenSignDay = region.Clock.Day;
+            }
+        }
+
+        static void StepStern(Region region)
+        {
+            // Strikes witnessed theft and violence within ~1 day (24 ticks)
+            foreach (var b in region.Bands)
+            {
+                if (b.Band.Members.Count == 0) continue;
+                bool recentAttack = region.Clock.Tick - b.LastWitnessedAttackTick <= 24;
+                bool recentTheft = region.Clock.Tick - b.LastWitnessedTheftTick <= 24;
+
+                if (recentAttack || recentTheft)
+                {
+                    var wrongdoer = b.LastWitnessedWrongdoer;
+                    if (wrongdoer != null && wrongdoer.Alive && region.GodHarm >= 4.0 && region.CanCastLightning(wrongdoer) && region.Favor >= 40.0)
+                    {
+                        region.CastLightning(wrongdoer);
+                        b.LastWitnessedAttackTick = -99999;
+                        b.LastWitnessedTheftTick = -99999;
+                        b.LastWitnessedWrongdoer = null;
+                    }
+                    else if (region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 6)
+                    {
+                        string desc = recentAttack
+                            ? "The skies roared in fury at bloodshed among kin"
+                            : "A chill tremor shook the stolen hearth in divine anger";
+                        region.CastOmen((int)b.Band.CampX, (int)b.Band.CampY, desc, isGood: false);
+                        region.LastOmenSignDay = region.Clock.Day;
+                        b.LastWitnessedAttackTick = -99999;
+                        b.LastWitnessedTheftTick = -99999;
+                        b.LastWitnessedWrongdoer = null;
+                    }
+                }
+            }
+
+            // Affirming omens when camps have kept the peace (no witnessed violence/theft for >= 60 days)
+            if (region.Clock.Hour == 12 && region.Clock.Day - region.LastOmenSignDay >= 30 && region.Favor >= 15.0)
+            {
+                var peacefulBands = region.Bands
+                    .Where(b => b.Band.Members.Count > 0 &&
+                                (region.Clock.Tick - b.LastWitnessedAttackTick > 60 * 24) &&
+                                (region.Clock.Tick - b.LastWitnessedTheftTick > 60 * 24))
+                    .ToList();
+                if (peacefulBands.Count > 0)
+                {
+                    var camp = peacefulBands[region.GodRng.Range(0, peacefulBands.Count)];
+                    region.CastOmen((int)camp.Band.CampX, (int)camp.Band.CampY, "A serene sky watched peacefully over the tranquil camp", isGood: true);
+                    region.LastOmenSignDay = region.Clock.Day;
+                }
+            }
+        }
+
+        static void StepCapricious(Region region)
+        {
+            // Acts at random intervals (GodRng) with random good/bad omens, bounties, and weather
+            if (region.Clock.Hour == 12 && region.GodRng.Chance(0.06))
+            {
+                var liveBands = region.Bands.Where(b => b.Band.Members.Count > 0).ToList();
+                if (liveBands.Count == 0) return;
+                var camp = liveBands[region.GodRng.Range(0, liveBands.Count)];
+
+                double roll = region.GodRng.Range(0.0, 1.0);
+                if (roll < 0.20 && region.Favor >= 25.0 && region.Clock.Day - camp.LastBountyDay >= 45)
+                {
+                    bool animals = region.GodRng.Chance(0.5);
+                    region.CastBounty((int)camp.Band.CampX, (int)camp.Band.CampY, animals: animals);
+                    camp.LastBountyDay = region.Clock.Day;
+                }
+                else if (roll < 0.35 && region.Favor >= 80.0 && region.Clock.Day - region.LastWeatherDay >= 180)
+                {
+                    double delta = region.GodRng.Chance(0.5) ? 0.3 : -0.3;
+                    region.CastWeather(region.Clock.Season, delta);
+                    region.LastWeatherDay = region.Clock.Day;
+                }
+                else if (region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 6)
+                {
+                    bool isGood = region.GodRng.Chance(0.5);
+                    string desc = isGood
+                        ? "A strange radiant glimmer danced across the noon sky"
+                        : "A sudden eerie shadow darkened the noon sun";
+                    region.CastOmen((int)camp.Band.CampX, (int)camp.Band.CampY, desc, isGood: isGood);
+                    region.LastOmenSignDay = region.Clock.Day;
                 }
             }
         }

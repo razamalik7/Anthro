@@ -46,7 +46,7 @@ namespace Anthro.Sim.People
                     // D3 (owner decision 2026-10-13): Devout people talk about the god more often and more persuasively;
                     // listeners absorb testimony filtered by their own credulity, without weak echoes erasing firsthand experience.
                     double real = speaker.Expect.Get("god:real", 0.2);
-                    if (real > 0.30)
+                    if (real > 0.35)
                     {
                         double talkChance = System.Math.Min(0.85, (real - 0.25) * 1.1);
                         if (godRng.Chance(talkChance))
@@ -54,16 +54,15 @@ namespace Anthro.Sim.People
                             var key = godTopics[godRng.Range(0, godTopics.Count)];
                             double v = speaker.Expect.Get(key, 0);
                             double listenerCred = listener.M(MindTrait.Credulity);
-                            double receptivity = System.Math.Clamp((listenerCred - 0.24) * 2.0, 0.03, 1.4);
+                            double receptivity = System.Math.Pow(System.Math.Clamp((listenerCred - 0.15) / 0.75, 0.04, 1.4), 1.5);
                             double godWeight = weight * (0.3 + 1.2 * real) * receptivity;
                             if (godWeight > 0.4) godWeight = 0.4;
 
                             if (key == "god:real")
                             {
                                 double listenerReal = listener.Expect.Get("god:real", 0.2);
-                                double maxFromTalk = System.Math.Min(v * 0.85, Simulation.TemperamentSignTarget(listener) * 0.85);
-                                if (maxFromTalk > listenerReal)
-                                    listener.Expect.Absorb(key, maxFromTalk, godWeight * 0.35, listenerReal);
+                                if (v > listenerReal)
+                                    listener.Expect.Absorb(key, v, godWeight * 0.20, listenerReal);
                             }
                             else if (System.Math.Abs(v) > 0.04)
                             {

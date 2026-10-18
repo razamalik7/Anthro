@@ -231,7 +231,7 @@ namespace Anthro.Sim.Activities
                 if (kv.Key.StartsWith("god:"))
                 {
                     double targetVal = kv.Key == "god:real"
-                        ? Math.Min(kv.Value * 0.85, Simulation.TemperamentSignTarget(P) * 0.85)
+                        ? kv.Value
                         : kv.Value * (0.35 + 0.65 * cred);
                     double defVal = kv.Key == "god:real" ? 0.2 : 0.0;
                     P.Expect.Absorb(kv.Key, targetVal, 0.02 * (0.5 + P.M(MindTrait.Openness)) * cred, P.Expect.Get(kv.Key, defVal));
@@ -339,12 +339,19 @@ namespace Anthro.Sim.Activities
             var oSeason = sim.Clock.Season;
             sim.ThisYear.DevotionBySeason[oSeason] = sim.ThisYear.DevotionBySeason.TryGetValue(oSeason, out var oDv) ? oDv + 1 : 1;
             if (P.Satiety >= 0.6) sim.ThisYear.DevotionFed++; else sim.ThisYear.DevotionHungry++;
-            sim.LastOfferFeastDay = sim.Clock.Day;
 
-            if (!Simulation.Off("relief") && P.Dread > 0.05)
+            var deed = new People.Deed { Day = sim.Clock.Day, Actor = P, Act = People.Act.Offer, Amount = burned, Hearth = home };
+            foreach (var m in attendees.Where(a => a.AgeYears(sim.Clock) >= 6))
             {
-                P.AppeasementAct = "offer";
-                P.AppeasementDread = P.Dread;
+                if (m != P && !m.Deeds.Any(d => d.Deed.Actor == P && d.Deed.Act == People.Act.Offer && d.Deed.Day == sim.Clock.Day))
+                {
+                    m.Deeds.Add(new People.Remembered(deed, true));
+                }
+                if (!Simulation.Off("relief") && m.Dread > 0.05)
+                {
+                    m.AppeasementAct = "offer";
+                    m.AppeasementDread = m.Dread;
+                }
             }
 
             var openPrayer = sim.Region.ActivePrayers.FirstOrDefault(pr => pr.Asker == P && !pr.Resolved);
@@ -358,7 +365,7 @@ namespace Anthro.Sim.Activities
             sim.Chronicle.Write(sim.Clock, Anthro.Sim.Core.Importance.Detail, $"{P.Name} held an offering feast of {actual:F1} rations ({burned:F1} burned for the god).");
             sim.Region.GodEvents.Add(new GodEvent(sim.Clock.Tick, "Offer", $"{P.Name} held an offering feast ({burned:F1} burned, +{gain:F1} favor)", (int)sim.Band.CampX, (int)sim.Band.CampY));
             
-            sim.HappenHere(new People.Deed { Day = sim.Clock.Day, Actor = P, Act = People.Act.Offer, Amount = burned, Hearth = home });
+            sim.HappenHere(deed);
         }
     }
 }
