@@ -476,11 +476,11 @@ namespace Anthro.Sim.Activities
             {
                 double real = Simulation.GodReal(p);
                 double thankReturn = Simulation.GodThank(p);
-                if (real > 0.10 && thankReturn > 0.02)
+                if (real > 0.15 && thankReturn > 0.03)
                 {
                     double thankPull = real * thankReturn * (1.0 - hunger * 0.6);
-                    double thankScore = 0.15 + 1.5 * thankPull + 0.20 * (p.ThanksUrge - 1.0);
-                    if (thankScore > 0.10)
+                    double thankScore = 0.35 + 1.2 * thankPull + 0.25 * (p.ThanksUrge - 1.0);
+                    if (thankScore > 0.1)
                     {
                         options.Add(new Option(Verb.Pray, thankScore, () =>
                         {
@@ -509,7 +509,7 @@ namespace Anthro.Sim.Activities
 
                     // Path 1: Learned offering habit (communal shared feast or fear appeasement)
                     double learned = Simulation.GodOffer(p);
-                    if (learned > 0.0 && home.Food.Total >= 2.0 && home.DaysOfFood >= 2.0 && p.Stomach < 0.85)
+                    if (learned > 0.0 && sim.OfferUrge >= 1.0 && home.Food.Total >= 2.0 && home.DaysOfFood >= 2.0 && p.Stomach < 0.85)
                     {
                         double feltReturn = Simulation.Felt(learned);
                         double kind = Simulation.GodKind(p);
@@ -519,17 +519,13 @@ namespace Anthro.Sim.Activities
                         else if (kind < 0)
                             scale += Math.Abs(kind) * p.W(Drive.Safety);
 
-                        bool canFeast = sim.OfferUrge >= 1.0 || (kind < -0.3 && (p.Dread > 0.2 || scale > 1.2));
-                        if (canFeast)
-                        {
-                            offerScore = 0.12 + 0.5 * real * feltReturn * scale + 0.15 * Math.Max(0.0, sim.OfferUrge - 1.0);
-                            offerAmount = Math.Min(1.5, home.Food.Total * 0.12);
-                        }
+                        offerScore = 0.35 + 0.60 * real * feltReturn * scale + 0.25 * (sim.OfferUrge - 1.0);
+                        offerAmount = Math.Min(1.5, home.Food.Total * 0.12);
                     }
 
                     // Path 2: Escalated plea (B2) or appeasement improvisation in dread
                     Prayer? openPrayer = sim.Region.ActivePrayers.FirstOrDefault(pr => pr.Asker == p && !pr.Resolved);
-                    if (openPrayer != null && !openPrayer.HasOffering && sim.Clock.Day > openPrayer.StartDay)
+                    if (openPrayer != null && !openPrayer.HasOffering && sim.Clock.Day > openPrayer.StartDay && sim.OfferUrge >= 0.5)
                     {
                         double desperation = 0.0;
                         if (openPrayer.Need == PrayerNeed.Hunger)
@@ -543,7 +539,7 @@ namespace Anthro.Sim.Activities
 
                         if (desperation > 0.35)
                         {
-                            double escalatedScore = desperation * real * (0.6 + p.M(MindTrait.Credulity) * 0.4);
+                            double escalatedScore = 0.38 + desperation * (0.4 + 0.6 * real) * (0.6 + p.M(MindTrait.Credulity) * 0.4);
                             if (escalatedScore > offerScore)
                             {
                                 offerScore = escalatedScore;
@@ -552,9 +548,9 @@ namespace Anthro.Sim.Activities
                             }
                         }
                     }
-                    else if (!Simulation.Off("relief") && p.Dread > 0.35 && sim.OfferUrge >= 0.5 && home.Food.Total >= 1.0)
+                    else if (!Simulation.Off("relief") && p.Dread > 0.25 && sim.OfferUrge >= 0.4 && home.Food.Total >= 1.0)
                     {
-                        double dreadScore = p.Dread * real * (0.6 + p.M(MindTrait.Credulity) * 0.4);
+                        double dreadScore = 0.40 + p.Dread * (0.4 + 0.6 * real) * (0.6 + p.M(MindTrait.Credulity) * 0.4);
                         if (dreadScore > offerScore)
                         {
                             offerScore = dreadScore;
@@ -562,7 +558,7 @@ namespace Anthro.Sim.Activities
                         }
                     }
 
-                    if (offerScore > 0.05 && offerAmount > 0.0)
+                    if (offerScore > 0.1 && offerAmount > 0.0)
                     {
                         options.Add(new Option(Verb.Offer, offerScore, () =>
                         {

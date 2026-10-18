@@ -133,3 +133,20 @@ Still open:
 - Hunting prestige: cultural only (a share-of-food signal was self-reinforcing and was removed).
 - Weir build rate (~12 person-hours), decay (~1 year unmaintained): hand-set world facts.
 - Badly-wounded threshold (0.6) for being unable to fight: a body fact, hand-set.
+
+## Additions 2026-10-18 (T11C / T10C — God Layer Calibration & Pattern Bots)
+
+Fixed / Emergent Replacements:
+- Removed day-counter timers and gags (`LastGodSignDay >= 0`, `DailyThanksCount`, `LastOfferFeastDay`) in favor of continuous personal and camp urges (`ThanksUrge`, `OfferUrge`) and learned expectation returns.
+- Removed artificial `0.45` surprise floor in `Credit.cs` and artificial `0.55` ceiling on belief inheritance.
+- Replaced hard belief clamp `TemperamentSignTarget` with smooth, convex credulity-weighted receptivity: `Pow(Clamp((cred - 0.12) / 0.75, 0.05, 1.5), 1.6)`.
+- Restored genuine physical costs for grave goods (`burial.goods` in `Kill`).
+- Separated scalar `Reputation` into 2D independent dimensions `GodHelp` and `GodHarm`.
+
+Hand-set Numbers (disclosed):
+- `Belief.cs`: `SeedBelief` `baseReal` in `[0.14, 0.30]` (individual `[0.08, 0.35]`), `baseAnswers` `[0.02, 0.18]`, `baseThank` `[0.12, 0.22]`; `FadeBelief` `restReal = Clamp(0.06 + 0.32 * cred, 0.06, 0.34)`, `fadeRate = 0.00030 * Pow(Clamp((1.15 - cred) / 0.65, 0.35, 1.9), 1.3)`; daily `ThanksUrge += 0.05 * real`.
+- `Decider.cs`: Thanksgiving trigger `ThanksUrge >= 1.0` (score `+0.12 + 1.8 * pull`); offering trigger `sim.OfferUrge >= 1.0` (or fear offering under cruel gods `kind < -0.3`).
+- `CampActivities.cs` / `Prayers.cs`: Thanksgiving favor `0.50 * real`; crisis plea favor `1.5 * real`; offering favor `burned * real * 8.0 * (1.0 + |kind| * 1.5)`.
+- `God.cs`: `SustainableFavor = Math.Max(50.0, People.Sum(GodReal) * 4.0)`, `FavorLeakRate = 0.02/day`. Heal unlock `GodHelp >= 4.0`, Lightning unlock `GodHarm >= 4.0`. Max discount factor `0.40`.
+- `BotGod.cs`: Pattern bots `Charity` (give-reward interval 8d), `Demanding` (offering-check 10d, lapse penalty 35d), `Malevolent` (anger cycle 18d), `Stern` (wrongdoer check 8d), `Capricious` (random act interval 12 ± 6d).
+

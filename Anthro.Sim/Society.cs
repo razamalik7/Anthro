@@ -275,10 +275,10 @@ namespace Anthro.Sim
             var seen = Witness(deed);
             if (seen.Count > 0 || deed.Act == Act.Offer)
             {
-                if (deed.Act == Act.Give) { LastWitnessedGiveTick = Clock.Tick; LastGiveDay = Clock.Day; }
+                if (deed.Act == Act.Give) { LastWitnessedGiveTick = Clock.Tick; LastGiveDay = Clock.Day; LastWitnessedGiveDeed = deed; }
                 else if (deed.Act == Act.Take) { LastWitnessedTheftTick = Clock.Tick; LastWitnessedWrongdoer = deed.Actor; }
                 else if (deed.Act == Act.Attack) { LastWitnessedAttackTick = Clock.Tick; LastWitnessedWrongdoer = deed.Actor; }
-                else if (deed.Act == Act.Offer) { LastWitnessedOfferTick = Clock.Tick; LastOfferDay = Clock.Day; }
+                else if (deed.Act == Act.Offer) { LastWitnessedOfferTick = Clock.Tick; LastOfferDay = Clock.Day; LastWitnessedOfferDeed = deed; }
                 if (deed.Act == Act.Give || deed.Act == Act.Take || deed.Act == Act.Attack || deed.Act == Act.Offer || deed.Act == Act.Refuse)
                     LastWitnessedDeed = deed;
             }
@@ -767,8 +767,9 @@ namespace Anthro.Sim
                 {
                     if (kv.Key == "god:real")
                     {
-                        double baseSeed = Math.Clamp(0.08 + 0.28 * cred, 0.08, 0.32);
-                        double v = Math.Clamp(baseSeed * (1.0 - 0.65 * cred) + kv.Value * (0.65 * cred + 0.20), 0.06, 0.92);
+                        double baseSeed = Math.Clamp(0.08 + 0.24 * cred, 0.08, 0.26);
+                        double inheritShare = Math.Clamp(0.85 * (cred - 0.15), 0.0, 0.70);
+                        double v = Math.Clamp(baseSeed * (1.0 - inheritShare) + kv.Value * inheritShare, 0.06, 0.90);
                         child.Expect.Absorb(kv.Key, v, 1, v);
                     }
                     else

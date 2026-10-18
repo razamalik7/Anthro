@@ -82,8 +82,8 @@ namespace Anthro.Sim
         {
             if (Off("god") || Off("belief")) return;
             double cred = p.M(MindTrait.Credulity);
-            double restReal = Math.Clamp(0.06 + 0.32 * cred, 0.06, 0.34);
-            double fadeRate = 0.00035 * Math.Pow(Math.Clamp((1.15 - cred) / 0.65, 0.35, 2.0), 1.4);
+            double restReal = Math.Clamp(0.04 + 0.24 * cred, 0.04, 0.26);
+            double fadeRate = 0.00032 * Math.Pow(Math.Clamp((1.15 - cred) / 0.65, 0.30, 2.2), 1.50);
             p.Expect.Absorb(GodRealTopic, restReal, fadeRate, restReal);
 
             // Moral act attributions relax slowly unless refreshed by new deeds + signs, preserving personal variation
@@ -91,16 +91,17 @@ namespace Anthro.Sim
             {
                 double val = p.Expect.Get(topic, 0.0);
                 if (Math.Abs(val) > 0.005)
-                    p.Expect.Absorb(topic, 0.0, 0.0006, val);
+                    p.Expect.Absorb(topic, 0.0, 0.0002, val);
             }
 
-            // Offerings that go unanswered erode daily, like prayers (T10 A3: no timers)
+            // Offerings that go unanswered erode daily, like prayers (T10 A3: no timers).
+            // While an appeasement offering is actively relieving dread (A2), it is being answered by relief.
             double offerBelief = GodOffer(p);
-            if (offerBelief > 0)
+            if (offerBelief > 0 && !(p.AppeasementAct == "offer" && p.Dread > 0))
             {
                 bool unansweredOwn = p.OwnDeeds.Any(d => d.Deed.Act == Act.Offer && d.Deed.Day > p.LastGodSignDay);
                 bool unansweredSeen = !unansweredOwn && p.Deeds.Any(d => d.Deed.Act == Act.Offer && d.Deed.Day > p.LastGodSignDay);
-                double decay = unansweredOwn ? 0.004 : (unansweredSeen ? 0.002 : 0.0008);
+                double decay = unansweredOwn ? 0.003 : (unansweredSeen ? 0.0015 : 0.0006);
                 p.Expect.Absorb(GodOfferTopic, 0.0, decay, offerBelief);
             }
 
@@ -109,15 +110,18 @@ namespace Anthro.Sim
             {
                 double real = GodReal(p);
                 double thank = Math.Max(0.0, GodThank(p));
-                // Urge grows from faith and learned gratitude, slightly faster after recent signs, slower when over-comfortable
-                double signFreshness = (p.LastGodSignDay >= 0) ? Math.Exp(-(Clock.Day - p.LastGodSignDay) / 90.0) : 0.15;
-                p.ThanksUrge = Math.Min(2.0, p.ThanksUrge + real * thank * (0.35 + 0.65 * signFreshness));
+                if (real > 0.15 && thank > 0.03)
+                {
+                    // Urge grows from faith and learned gratitude, faster after recent signs
+                    double signFreshness = (p.LastGodSignDay >= 0) ? Math.Exp(-(Clock.Day - p.LastGodSignDay) / 120.0) : 0.35;
+                    p.ThanksUrge = Math.Min(2.0, p.ThanksUrge + (0.020 + 0.12 * real * thank) * (0.45 + 0.55 * signFreshness));
+                }
             }
             double thankBelief = GodThank(p);
             if (thankBelief > 0.01)
             {
                 bool unansweredThanks = p.LastThanksDay > p.LastGodSignDay;
-                double thankDecay = unansweredThanks ? 0.0020 * (1.2 - 0.5 * cred) : 0.0005 * (1.2 - 0.5 * cred);
+                double thankDecay = unansweredThanks ? 0.0020 * (1.2 - 0.5 * cred) : 0.0004 * (1.2 - 0.5 * cred);
                 p.Expect.Absorb(GodThankTopic, 0.01, thankDecay, thankBelief);
             }
 
@@ -132,7 +136,7 @@ namespace Anthro.Sim
                 if (drop > 0 && !string.IsNullOrEmpty(p.AppeasementAct))
                 {
                     double real = GodReal(p);
-                    double reliefWeight = 0.20 * (0.4 + cred * 0.8) * Math.Max(0.2, real) * drop;
+                    double reliefWeight = 0.45 * (0.4 + cred * 0.8) * Math.Max(0.25, real) * drop;
 
                     if (p.AppeasementAct == "offer")
                     {

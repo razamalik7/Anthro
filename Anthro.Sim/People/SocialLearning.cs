@@ -61,8 +61,9 @@ namespace Anthro.Sim.People
                             if (key == "god:real")
                             {
                                 double listenerReal = listener.Expect.Get("god:real", 0.2);
-                                if (v > listenerReal)
-                                    listener.Expect.Absorb(key, v, godWeight * 0.20, listenerReal);
+                                double targetReal = v * System.Math.Clamp(1.25 * (listenerCred - 0.12), 0.05, 1.0);
+                                if (targetReal > listenerReal)
+                                    listener.Expect.Absorb(key, targetReal, godWeight * 0.14, listenerReal);
                             }
                             else if (System.Math.Abs(v) > 0.04)
                             {

@@ -286,8 +286,9 @@ namespace Anthro.Sim
                         double wRec = Math.Clamp((wCred - 0.24) * 2.2, 0.04, 1.6);
                         if (divineIntervention)
                         {
+                            double wConviction = Math.Clamp(0.15 + 1.15 * (0.65 * wCred + 0.35 * w.I(Interest.Spirits)), 0.18, 0.96);
                             w.Expect.Absorb(Simulation.GodAnswersTopic, 1.0, 0.10 * surprise * wRec, Simulation.GodAnswers(w));
-                            w.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.08 * surprise * wRec, Simulation.GodReal(w));
+                            w.Expect.Absorb(Simulation.GodRealTopic, wConviction, 0.08 * surprise * wRec, Simulation.GodReal(w));
                         }
                         else
                         {

@@ -75,15 +75,16 @@ namespace Anthro.Sim
                             {
                                 witness.Dread = Math.Min(1.0, witness.Dread + 0.6);
                                 witness.DreadPeak = Math.Max(witness.DreadPeak, witness.Dread);
+                                band.OfferUrge = Math.Max(band.OfferUrge, 0.65);
                             }
 
-                            // D1 (owner decision 2026-10-13): A blow followed thanks -> weaken god:thank (continuous recency over the season)
+                            // D1 (owner decision 2026-10-13): A blow followed thanks -> weaken god:thank toward 0 (continuous recency over the season)
                             long daysSinceThanks = Clock.Day - witness.LastThanksDay;
                             if (daysSinceThanks >= 0 && daysSinceThanks <= SimClock.DaysPerSeason)
                             {
                                 double recency = 1.0 - (daysSinceThanks / (double)SimClock.DaysPerSeason) * 0.75;
-                                double weight = 0.18 * recency * receptivity * Math.Max(0.2, real);
-                                witness.Expect.Absorb(Simulation.GodThankTopic, -1.0, weight, Simulation.GodThank(witness));
+                                double weight = 0.10 * recency * receptivity * Math.Max(0.2, real);
+                                witness.Expect.Absorb(Simulation.GodThankTopic, 0.0, weight, Simulation.GodThank(witness));
                             }
                         }
                         else
@@ -110,6 +111,16 @@ namespace Anthro.Sim
                                 // Witnessing an unprompted divine blessing inspires gratitude
                                 witness.Expect.Absorb(Simulation.GodThankTopic, 0.65, 0.16 * surprise * receptivity, Simulation.GodThank(witness));
                             }
+                        }
+                    }
+
+                    if (band.LastWitnessedDeed != null && Clock.Day - band.LastWitnessedDeed.Day <= 1)
+                    {
+                        var td = band.LastWitnessedDeed;
+                        if (!witness.Deeds.Any(rem => rem.Deed.Actor == td.Actor && rem.Deed.Act == td.Act && rem.Deed.Day == td.Day) &&
+                            !witness.OwnDeeds.Any(rem => rem.Deed.Actor == td.Actor && rem.Deed.Act == td.Act && rem.Deed.Day == td.Day))
+                        {
+                            witness.Deeds.Add(new Remembered(td, true));
                         }
                     }
 
@@ -143,9 +154,9 @@ namespace Anthro.Sim
                                 // Lightning on a wrongdoer: "the god punishes <their act>"
                                 var d = wrongDeed.Value.Deed;
                                 string topic = Simulation.GodActTopic(d.Act);
-                                double weight = 0.25 * receptivity * Math.Max(0.2, real);
+                                double weight = 0.30 * receptivity * Math.Max(0.25, real);
                                 witness.Expect.Absorb(topic, -1.0, weight, witness.Expect.Get(topic, 0.0));
-                                witness.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.18 * receptivity, Simulation.GodReal(witness));
+                                witness.Expect.Absorb(Simulation.GodRealTopic, 0.95, 0.18 * receptivity, Simulation.GodReal(witness));
                                 witness.Expect.Absorb(Simulation.GodKindTopic, -0.2, 0.08 * receptivity, Simulation.GodKind(witness));
                             }
                             else
@@ -166,13 +177,15 @@ namespace Anthro.Sim
                                 string topic = Simulation.GodActTopic(Act.Attack);
                                 double weight = 0.25 * receptivity * Math.Max(0.2, real);
                                 witness.Expect.Absorb(topic, 1.0, weight, witness.Expect.Get(topic, 0.0));
-                                witness.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.16 * receptivity, Simulation.GodReal(witness));
+                                witness.Expect.Absorb(Simulation.GodRealTopic, 0.95, 0.16 * receptivity, Simulation.GodReal(witness));
                                 witness.Expect.Absorb(Simulation.GodKindTopic, -0.5, 0.12 * receptivity, Simulation.GodKind(witness));
                             }
                             else
                             {
                                 // Healing an innocent/ordinary person: miraculous benevolence
-                                witness.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.20 * receptivity, Simulation.GodReal(witness));
+                                double spiritPull = 0.65 * cred + 0.35 * witness.I(Interest.Spirits);
+                                double targetReal = isPersonalMiracle ? 0.96 : Math.Clamp(0.68 + 1.50 * (spiritPull - 0.50), 0.12, 0.98);
+                                witness.Expect.Absorb(Simulation.GodRealTopic, targetReal, 0.20 * receptivity, Simulation.GodReal(witness));
                                 witness.Expect.Absorb(Simulation.GodKindTopic, 1.0, 0.15 * receptivity, Simulation.GodKind(witness));
                                 if (isPersonalMiracle)
                                 {
@@ -182,22 +195,14 @@ namespace Anthro.Sim
                         }
                         else if (source == "BlessedBirth")
                         {
-                            witness.Expect.Absorb(Simulation.GodRealTopic, 1.0, 0.20 * receptivity, Simulation.GodReal(witness));
+                            double spiritPull = 0.65 * cred + 0.35 * witness.I(Interest.Spirits);
+                            double targetReal = isPersonalMiracle ? 0.96 : Math.Clamp(0.68 + 1.50 * (spiritPull - 0.50), 0.12, 0.98);
+                            witness.Expect.Absorb(Simulation.GodRealTopic, targetReal, 0.20 * receptivity, Simulation.GodReal(witness));
                             witness.Expect.Absorb(Simulation.GodKindTopic, 1.0, 0.15 * receptivity, Simulation.GodKind(witness));
                         }
                     }
                     else
                     {
-                        if (band.LastWitnessedDeed != null && band.LastWitnessedDeed.Day == Clock.Day)
-                        {
-                            var td = band.LastWitnessedDeed;
-                            if (!witness.Deeds.Any(rem => rem.Deed.Actor == td.Actor && rem.Deed.Act == td.Act && rem.Deed.Day == td.Day) &&
-                                !witness.OwnDeeds.Any(rem => rem.Deed.Actor == td.Actor && rem.Deed.Act == td.Act && rem.Deed.Day == td.Day))
-                            {
-                                witness.Deeds.Add(new Remembered(td, false));
-                            }
-                        }
-
                         Remembered? mostSalient = null;
                         double bestSalience = 0.0;
 
@@ -207,19 +212,25 @@ namespace Anthro.Sim
                             var d = rem.Deed;
                             long ageDays = Clock.Day - d.Day;
                             if (ageDays < 0 || ageDays > SimClock.DaysPerSeason) continue;
+                            // Turning away someone when one's own hearth has nothing to spare (Amount ~ 0) is not a stingy refusal
+                            if (d.Act == Act.Refuse && d.Amount < 0.05) continue;
 
                             // Salience: recency (steep drop so immediate deed strongly dominates)
-                            double recency = ageDays == 0 ? 3.0 : (ageDays <= 2 ? 1.6 : Math.Pow(Math.Max(0.0, 1.0 - (ageDays / (double)SimClock.DaysPerSeason)), 2.5));
-                            // Firsthand observation is much more vivid than gossip
-                            double vivid = rem.Firsthand ? 1.0 : 0.25;
+                            double recency = ageDays == 0 ? 5.0 : (ageDays == 1 ? 2.8 : (ageDays <= 3 ? 1.4 : Math.Pow(Math.Max(0.0, 1.0 - (ageDays / (double)SimClock.DaysPerSeason)), 2.5)));
+                            // If this is the exact camp-witnessed deed the sign answered, it stands out clearly above background camp talk
+                            bool isFocalCampDeed = band.LastWitnessedDeed != null && d.Actor == band.LastWitnessedDeed.Actor && d.Act == band.LastWitnessedDeed.Act && d.Day == band.LastWitnessedDeed.Day && ageDays <= 1;
+                            if (isFocalCampDeed)
+                                recency *= 6.0;
+                            // Firsthand observation is more vivid than gossip
+                            double vivid = (rem.Firsthand || isFocalCampDeed) ? 1.0 : 0.45;
                             // Personal involvement (own deed or deed against self) strongly dominates conscience
                             double involvement = (d.Actor == witness || d.Target == witness)
                                 ? 4.2
                                 : ((d.Hearth != null && d.Hearth == witness.Home) ? 1.4 : 1.0);
-                            // Transgressive or sacred acts stand out strongly over routine sharing
-                            double actWeight = (d.Act == Act.Attack || d.Act == Act.Take || d.Act == Act.Offer || d.Act == Act.Refuse)
-                                ? 3.5
-                                : (d.Act == Act.Give ? 0.45 : 1.2);
+                            // Dramatic transgressions and sacred offerings stand out; everyday giving and refusing have balanced weight
+                            double actWeight = (d.Act == Act.Attack || d.Act == Act.Take || d.Act == Act.Offer)
+                                ? 3.2
+                                : ((d.Act == Act.Give || d.Act == Act.Refuse) ? 1.2 : 1.0);
                             // Individual focus variation so bystanders don't all fixate on the exact same background deed
                             double focus = 0.80 + 0.40 * ((((witness.Id * 31 + d.Actor.Id * 17 + (int)d.Act * 7 + (int)d.Day) & 31)) / 31.0);
 
@@ -238,7 +249,7 @@ namespace Anthro.Sim
                             double target = isGood ? 1.0 : -1.0;
                             double involvementFactor = (deed.Actor == witness || deed.Target == witness)
                                 ? 2.5
-                                : (mostSalient.Value.Firsthand ? 0.65 : 0.20);
+                                : (mostSalient.Value.Firsthand ? 0.75 : 0.35);
                             double weight = 0.22 * receptivity * involvementFactor * Math.Max(0.25, real);
                             double current = witness.Expect.Get(topic, 0.0);
 
@@ -253,9 +264,11 @@ namespace Anthro.Sim
                             }
                         }
 
-                        // Striking events feed belief in the unseen power and update perceived disposition (GOD-LAYER §1)
+                        // Striking events feed belief in the unseen power according to how much divine agency the witness perceives in natural signs
+                        double spiritPull = 0.65 * cred + 0.35 * witness.I(Interest.Spirits);
+                        double signConviction = Math.Clamp(0.70 + 1.56 * (spiritPull - 0.50), 0.10, 0.98);
                         double eventStrength = (source == "Omen") ? 0.14 : 0.20;
-                        witness.Expect.Absorb(Simulation.GodRealTopic, 1.0, eventStrength * receptivity, Simulation.GodReal(witness));
+                        witness.Expect.Absorb(Simulation.GodRealTopic, signConviction, eventStrength * receptivity, Simulation.GodReal(witness));
                         witness.Expect.Absorb(Simulation.GodKindTopic, isGood ? 1.0 : -1.0, 0.08 * receptivity * real, Simulation.GodKind(witness));
 
                         // Events while a plea is open count (brief B1): sign (belief up) or refusal (belief/kind down)
@@ -274,6 +287,7 @@ namespace Anthro.Sim
                         }
                     }
                 }
+                band.LastWitnessedDeed = null;
             }
         }
     }

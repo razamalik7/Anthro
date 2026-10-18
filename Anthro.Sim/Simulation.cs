@@ -63,6 +63,8 @@ namespace Anthro.Sim
         public long LastGiveDay = -99999;
         public Person? LastWitnessedWrongdoer;
         public Deed? LastWitnessedDeed;
+        public Deed? LastWitnessedGiveDeed;
+        public Deed? LastWitnessedOfferDeed;
         public long LastBountyDay = -99999;
 
         /// <summary>
@@ -99,7 +101,7 @@ namespace Anthro.Sim
 
         /// <summary>Best plant patches near camp, refreshed daily so foragers don't each scan the map.</summary>
         public readonly List<Cell> ForagePatches = new List<Cell>();
-        public double OfferUrge;
+        public double OfferUrge = 1.0;
 
         public YearStats ThisYear { get; private set; } = new YearStats();
         public event Action<YearStats>? YearEnded;
@@ -385,9 +387,9 @@ namespace Anthro.Sim
             if (!Off("god") && !Off("offer") && Band.Members.Count > 0)
             {
                 double campPull = Band.Members.Where(Grown)
-                    .Select(m => GodReal(m) * Math.Max(0.0, GodOffer(m)) + m.Dread * 0.25)
+                    .Select(m => GodReal(m) * Math.Max(0.0, GodOffer(m)) + m.Dread * 0.20)
                     .DefaultIfEmpty(0.0).Average();
-                OfferUrge = Math.Min(2.0, OfferUrge + campPull * 0.45);
+                OfferUrge = Math.Min(2.0, OfferUrge + campPull * 0.12);
             }
             if (Clock.Day % 7 == 0) foreach (var m in Band.Members) m.Map.Fade(Clock.Day, MapCapacity(m));
             using (Profiler.Measure("daily wolves")) WolvesNearCamp();

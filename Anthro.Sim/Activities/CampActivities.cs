@@ -224,17 +224,17 @@ namespace Anthro.Sim.Activities
             }
             sim.Contact(P, _teacher, 0.5);
             P.AddAffinity(_teacher, 0.01);
-            // Children soak up what the adults around them believe, along with the skill.
+            // Children soak up what the adults around them believe, along with the skill, filtered by their own credulity.
             double cred = P.M(MindTrait.Credulity);
             foreach (var kv in _teacher.Expect.Snapshot())
             {
                 if (kv.Key.StartsWith("god:"))
                 {
                     double targetVal = kv.Key == "god:real"
-                        ? kv.Value
+                        ? kv.Value * Math.Clamp(1.25 * (cred - 0.12), 0.05, 1.0)
                         : kv.Value * (0.35 + 0.65 * cred);
                     double defVal = kv.Key == "god:real" ? 0.2 : 0.0;
-                    P.Expect.Absorb(kv.Key, targetVal, 0.02 * (0.5 + P.M(MindTrait.Openness)) * cred, P.Expect.Get(kv.Key, defVal));
+                    P.Expect.Absorb(kv.Key, targetVal, 0.008 * (0.5 + P.M(MindTrait.Openness)) * cred, P.Expect.Get(kv.Key, defVal));
                 }
                 else
                 {
@@ -328,9 +328,10 @@ namespace Anthro.Sim.Activities
             double real = Simulation.GodReal(P);
             double kind = Simulation.GodKind(P);
             // Disposition factor: fear appeasement when cruel, devotion/gratitude when kind
-            double dispositionFactor = 1.0 + Math.Abs(kind) * 1.5;
-            // Favor comes strictly from what is given up (the burned share)
-            double gain = burned * real * 8.0 * dispositionFactor;
+            double dispositionFactor = 1.0 + Math.Abs(kind) * 1.5 + P.Dread * 1.2;
+            // Favor comes from the burned sacrifice plus a modest collective reverence/fear of the gathered camp
+            double attendeeFaith = attendees.Where(a => a.AgeYears(sim.Clock) >= 14).Sum(a => Simulation.GodReal(a) * (0.06 + 0.12 * a.Dread));
+            double gain = (burned * real * 8.0 + attendeeFaith) * dispositionFactor;
 
             sim.Region.FavorEarnedOffer += gain;
             sim.Region.AddFavor(gain);

@@ -250,6 +250,7 @@ namespace Anthro.Sim
                         bool isWinter = region.Clock.Season == Season.Winter;
                         if (isWinter && region.Favor >= 35.0)
                         {
+                            if (camp != null) camp.LastWitnessedDeed = null;
                             region.CastBounty(unhelped.CampX, unhelped.CampY, animals: true);
                             foreach (var pr in region.ActivePrayers.Where(pr => !pr.Resolved && pr.CampX == unhelped.CampX && pr.CampY == unhelped.CampY))
                             {
@@ -260,6 +261,7 @@ namespace Anthro.Sim
                         }
                         else if (!isWinter && region.Favor >= 25.0)
                         {
+                            if (camp != null) camp.LastWitnessedDeed = null;
                             region.CastBounty(unhelped.CampX, unhelped.CampY, animals: false);
                             foreach (var pr in region.ActivePrayers.Where(pr => !pr.Resolved && pr.CampX == unhelped.CampX && pr.CampY == unhelped.CampY))
                             {
@@ -270,6 +272,7 @@ namespace Anthro.Sim
                         }
                         else if (region.Favor >= 15.0 && region.Clock.Day - region.LastOmenSignDay >= 12)
                         {
+                            if (camp != null) camp.LastWitnessedDeed = null;
                             region.CastOmen(unhelped.CampX, unhelped.CampY, "A comforting sign answered the hungry camp's plea", isGood: true);
                             foreach (var pr in region.ActivePrayers.Where(pr => !pr.Resolved && pr.CampX == unhelped.CampX && pr.CampY == unhelped.CampY))
                                 pr.LastSignDay = region.Clock.Day;
@@ -278,6 +281,7 @@ namespace Anthro.Sim
                     }
                     else if (region.Favor >= 15.0 && region.Clock.Day - region.LastOmenSignDay >= 12)
                     {
+                        if (camp != null) camp.LastWitnessedDeed = null;
                         region.CastOmen(unhelped.CampX, unhelped.CampY, "A comforting sign answered the camp's plea", isGood: true);
                         foreach (var pr in region.ActivePrayers.Where(pr => !pr.Resolved && pr.CampX == unhelped.CampX && pr.CampY == unhelped.CampY))
                             pr.LastSignDay = region.Clock.Day;
@@ -294,6 +298,8 @@ namespace Anthro.Sim
                     }
                     else if (region.Favor >= 15.0 && region.Clock.Day - region.LastOmenSignDay >= 12)
                     {
+                        var camp = region.Bands.FirstOrDefault(b => b.Band.CampX == unhelped.CampX && b.Band.CampY == unhelped.CampY);
+                        if (camp != null) camp.LastWitnessedDeed = null;
                         region.CastOmen(unhelped.CampX, unhelped.CampY, "A gentle sign touches the sick", isGood: true);
                         foreach (var pr in region.ActivePrayers.Where(pr => !pr.Resolved && pr.CampX == unhelped.CampX && pr.CampY == unhelped.CampY))
                             pr.LastSignDay = region.Clock.Day;
@@ -316,6 +322,7 @@ namespace Anthro.Sim
                         && (region.Clock.Day - b.LastBountyDay >= 90));
                     if (acuteCamp != null)
                     {
+                        acuteCamp.LastWitnessedDeed = null;
                         region.CastBounty((int)acuteCamp.Band.CampX, (int)acuteCamp.Band.CampY, animals: isWinter);
                         acuteCamp.LastBountyDay = region.Clock.Day;
                     }
@@ -358,6 +365,16 @@ namespace Anthro.Sim
                 {
                     if (region.Favor >= 15.0 && region.Clock.Day - region.LastOmenSignDay >= 10)
                     {
+                        if (b.LastWitnessedWrongdoer != null)
+                        {
+                            b.LastWitnessedDeed = new Deed
+                            {
+                                Day = region.Clock.Day,
+                                Actor = b.LastWitnessedWrongdoer,
+                                Act = Act.Take,
+                                Amount = 2.0
+                            };
+                        }
                         region.CastOmen((int)b.Band.CampX, (int)b.Band.CampY, "A low rumble of celestial anger shook the stolen hearth", isGood: false);
                         region.LastOmenSignDay = region.Clock.Day;
                     }
@@ -395,6 +412,7 @@ namespace Anthro.Sim
                         if (roll <= acc) { camp = liveCamps[i]; break; }
                     }
 
+                    camp.LastWitnessedDeed = null;
                     region.CastOmen((int)camp.Band.CampX, (int)camp.Band.CampY, isFaithfulBand ? "A celestial blessing bathed the camp" : "A radiant glow illuminated the morning sky", isGood: true);
                     region.LastOmenSignDay = region.Clock.Day;
                 }
@@ -413,21 +431,24 @@ namespace Anthro.Sim
 
         static void StepCharity(Region region)
         {
-            // Responds to witnessed sharing within ~1 day (24 ticks)
+            // Responds to witnessed sharing within ~1 day (24 ticks) with blessings
+            long omenCooldown = region.Favor >= 25.0 ? 10 : 16;
             foreach (var b in region.Bands)
             {
                 if (b.Band.Members.Count == 0) continue;
                 if (region.Clock.Tick - b.LastWitnessedGiveTick <= 24)
                 {
-                    if (region.Favor >= 25.0 && region.Clock.Day - b.LastBountyDay >= 60)
+                    if (region.Favor >= 30.0 && region.Clock.Day - b.LastBountyDay >= 120 && b.Band.FoodTotal < b.Band.Members.Count * 2.5)
                     {
                         bool isWinter = region.Clock.Season == Season.Winter;
+                        b.LastWitnessedDeed = b.LastWitnessedGiveDeed;
                         region.CastBounty((int)b.Band.CampX, (int)b.Band.CampY, animals: isWinter);
                         b.LastBountyDay = region.Clock.Day;
                         b.LastWitnessedGiveTick = -99999;
                     }
-                    else if (region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 6)
+                    else if (region.Favor >= 10.0 && region.Clock.Day - region.LastOmenSignDay >= omenCooldown)
                     {
+                        b.LastWitnessedDeed = b.LastWitnessedGiveDeed;
                         region.CastOmen((int)b.Band.CampX, (int)b.Band.CampY, "A warm light settled over the sharing hearth", isGood: true);
                         region.LastOmenSignDay = region.Clock.Day;
                         b.LastWitnessedGiveTick = -99999;
@@ -436,9 +457,11 @@ namespace Anthro.Sim
             }
 
             // Answers open prayers with signs
-            var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted);
-            if (unhelped != null && region.Favor >= 15.0 && region.Clock.Day - region.LastOmenSignDay >= 8)
+            var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted && p.LastSignDay < p.StartDay);
+            if (unhelped != null && region.Favor >= 15.0 && region.Clock.Day - region.LastOmenSignDay >= 14)
             {
+                var camp = region.Bands.FirstOrDefault(b => b.Band.CampX == unhelped.CampX && b.Band.CampY == unhelped.CampY);
+                if (camp != null) camp.LastWitnessedDeed = camp.LastWitnessedGiveDeed != null && region.Clock.Day - camp.LastWitnessedGiveDeed.Day <= 1 ? camp.LastWitnessedGiveDeed : null;
                 region.CastOmen(unhelped.CampX, unhelped.CampY, "A gentle sign answered the plea of generous hands", isGood: true);
                 unhelped.LastSignDay = region.Clock.Day;
                 region.LastOmenSignDay = region.Clock.Day;
@@ -473,15 +496,17 @@ namespace Anthro.Sim
                 if (b.Band.Members.Count == 0) continue;
                 if (region.Clock.Tick - b.LastWitnessedOfferTick <= 48)
                 {
-                    if (region.Favor >= 25.0 && region.Clock.Day - b.LastBountyDay >= 60)
+                    if (region.Favor >= 30.0 && region.Clock.Day - b.LastBountyDay >= 120 && b.Band.FoodTotal < b.Band.Members.Count * 2.5)
                     {
                         bool isWinter = region.Clock.Season == Season.Winter;
+                        b.LastWitnessedDeed = b.LastWitnessedOfferDeed;
                         region.CastBounty((int)b.Band.CampX, (int)b.Band.CampY, animals: isWinter);
                         b.LastBountyDay = region.Clock.Day;
                         b.LastWitnessedOfferTick = -99999;
                     }
-                    else if (region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 4)
+                    else if (region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 8)
                     {
+                        b.LastWitnessedDeed = b.LastWitnessedOfferDeed;
                         region.CastOmen((int)b.Band.CampX, (int)b.Band.CampY, "Sacred smoke rose sweet into the calm sky", isGood: true);
                         region.LastOmenSignDay = region.Clock.Day;
                         b.LastWitnessedOfferTick = -99999;
@@ -490,9 +515,11 @@ namespace Anthro.Sim
             }
 
             // Answers prayers if accompanied by offering
-            var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted && p.HasOffering);
-            if (unhelped != null && region.Favor >= 15.0 && region.Clock.Day - region.LastOmenSignDay >= 6)
+            var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted && p.HasOffering && p.LastSignDay < p.StartDay);
+            if (unhelped != null && region.Favor >= 10.0 && region.Clock.Day - region.LastOmenSignDay >= 10)
             {
+                var camp = region.Bands.FirstOrDefault(b => b.Band.CampX == unhelped.CampX && b.Band.CampY == unhelped.CampY);
+                if (camp != null) camp.LastWitnessedDeed = camp.LastWitnessedOfferDeed;
                 region.CastOmen(unhelped.CampX, unhelped.CampY, "The god accepted the offering and answered the plea", isGood: true);
                 unhelped.LastSignDay = region.Clock.Day;
                 region.LastOmenSignDay = region.Clock.Day;
@@ -507,8 +534,9 @@ namespace Anthro.Sim
                     long lapse = b.LastOfferDay < 0 ? region.Clock.Day : (region.Clock.Day - b.LastOfferDay);
                     if (lapse > 35)
                     {
-                        if (region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 14)
+                        if (region.Favor >= 10.0 && region.Clock.Day - region.LastOmenSignDay >= 18)
                         {
+                            b.LastWitnessedDeed = null;
                             region.CastOmen((int)b.Band.CampX, (int)b.Band.CampY, "A shadow fell over the silent altar; the god hungers for tribute", isGood: false);
                             region.LastOmenSignDay = region.Clock.Day;
                             break;
@@ -539,22 +567,22 @@ namespace Anthro.Sim
         static void StepMalevolent(Region region)
         {
             // Sends periodic wrathful omens, harsh seasons, and Lightning (when unlocked),
-            // but holds back its wrath for ~30 days for any camp that makes an offering.
+            // but holds back its wrath for ~35 days for any camp that makes an offering (so dread fades and A2 relief teaches god:offer).
             if (region.Clock.Hour == 12)
             {
                 var unappeasedBands = region.Bands
-                    .Where(b => b.Band.Members.Count > 0 && (b.LastOfferDay < 0 || region.Clock.Day - b.LastOfferDay > 30))
+                    .Where(b => b.Band.Members.Count > 0 && (b.LastOfferDay < 0 || region.Clock.Day - b.LastOfferDay > 35))
                     .ToList();
 
                 if (unappeasedBands.Count > 0)
                 {
-                    // Lightning when unlocked (GodHarm >= 4.0 and Favor >= 40.0)
+                    // Lightning when unlocked (GodHarm >= 4.0 and Favor >= 40.0): target someone with a recent refusal/theft/attack so witnesses see divine wrath rather than random murder
                     if (region.GodHarm >= 4.0 && region.Favor >= 40.0 && region.Clock.Day - region.LastLightningDay >= 90)
                     {
                         var target = unappeasedBands
                             .SelectMany(b => b.Band.Members)
-                            .Where(m => m.Alive && region.CanCastLightning(m))
-                            .OrderByDescending(m => m.AgeYears(region.Clock))
+                            .Where(m => m.Alive && region.CanCastLightning(m) &&
+                                        m.OwnDeeds.Any(rem => (rem.Deed.Act == Act.Refuse || rem.Deed.Act == Act.Take || rem.Deed.Act == Act.Attack) && region.Clock.Day - rem.Deed.Day <= SimClock.DaysPerSeason))
                             .FirstOrDefault();
                         if (target != null)
                         {
@@ -566,6 +594,7 @@ namespace Anthro.Sim
                     if (region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 16)
                     {
                         var camp = unappeasedBands[region.GodRng.Range(0, unappeasedBands.Count)];
+                        camp.LastWitnessedDeed = null;
                         region.CastOmen((int)camp.Band.CampX, (int)camp.Band.CampY, "Dark clouds gathered in malice over the negligent camp", isGood: false);
                         region.LastOmenSignDay = region.Clock.Day;
                     }
@@ -581,9 +610,11 @@ namespace Anthro.Sim
             }
 
             // If an unhelped prayer included an offering, the malevolent god relents with a sign
-            var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted && p.HasOffering);
-            if (unhelped != null && region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 8)
+            var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted && p.HasOffering && p.LastSignDay < p.StartDay);
+            if (unhelped != null && region.Favor >= 10.0 && region.Clock.Day - region.LastOmenSignDay >= 12)
             {
+                var camp = region.Bands.FirstOrDefault(b => b.Band.CampX == unhelped.CampX && b.Band.CampY == unhelped.CampY);
+                if (camp != null) camp.LastWitnessedDeed = camp.LastWitnessedOfferDeed;
                 region.CastOmen(unhelped.CampX, unhelped.CampY, "The offering placated the dark presence", isGood: true);
                 unhelped.LastSignDay = region.Clock.Day;
                 region.LastOmenSignDay = region.Clock.Day;
@@ -592,24 +623,35 @@ namespace Anthro.Sim
 
         static void StepStern(Region region)
         {
-            // Strikes witnessed theft and violence within ~1 day (24 ticks)
+            // Strikes witnessed theft and violence within ~1.5 days (36 ticks)
             foreach (var b in region.Bands)
             {
                 if (b.Band.Members.Count == 0) continue;
-                bool recentAttack = region.Clock.Tick - b.LastWitnessedAttackTick <= 24;
-                bool recentTheft = region.Clock.Tick - b.LastWitnessedTheftTick <= 24;
+                bool recentAttack = region.Clock.Tick - b.LastWitnessedAttackTick <= 36;
+                bool recentTheft = region.Clock.Tick - b.LastWitnessedTheftTick <= 36;
 
                 if (recentAttack || recentTheft)
                 {
                     var wrongdoer = b.LastWitnessedWrongdoer;
-                    if (wrongdoer != null && wrongdoer.Alive && region.GodHarm >= 4.0 && region.CanCastLightning(wrongdoer) && region.Favor >= 40.0)
+                    if (wrongdoer != null)
+                    {
+                        b.LastWitnessedDeed = new Deed
+                        {
+                            Day = region.Clock.Day,
+                            Actor = wrongdoer,
+                            Act = recentAttack ? Act.Attack : Act.Take,
+                            Amount = 2.0
+                        };
+                    }
+
+                    if (wrongdoer != null && wrongdoer.Alive && region.GodHarm >= 4.0 && region.CanCastLightning(wrongdoer) && region.Favor >= 35.0)
                     {
                         region.CastLightning(wrongdoer);
                         b.LastWitnessedAttackTick = -99999;
                         b.LastWitnessedTheftTick = -99999;
                         b.LastWitnessedWrongdoer = null;
                     }
-                    else if (region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 6)
+                    else if (region.Favor >= 5.0 && region.Clock.Day - region.LastOmenSignDay >= 2)
                     {
                         string desc = recentAttack
                             ? "The skies roared in fury at bloodshed among kin"
@@ -623,20 +665,46 @@ namespace Anthro.Sim
                 }
             }
 
-            // Affirming omens when camps have kept the peace (no witnessed violence/theft for >= 60 days)
-            if (region.Clock.Hour == 12 && region.Clock.Day - region.LastOmenSignDay >= 30 && region.Favor >= 15.0)
+            // At noon, check for any unpunished theft or attack in the last 15 days across camps
+            if (region.Clock.Hour == 12 && region.Favor >= 10.0 && region.Clock.Day - region.LastOmenSignDay >= 14)
             {
-                var peacefulBands = region.Bands
-                    .Where(b => b.Band.Members.Count > 0 &&
-                                (region.Clock.Tick - b.LastWitnessedAttackTick > 60 * 24) &&
-                                (region.Clock.Tick - b.LastWitnessedTheftTick > 60 * 24))
-                    .ToList();
-                if (peacefulBands.Count > 0)
+                foreach (var b in region.Bands)
                 {
-                    var camp = peacefulBands[region.GodRng.Range(0, peacefulBands.Count)];
-                    region.CastOmen((int)camp.Band.CampX, (int)camp.Band.CampY, "A serene sky watched peacefully over the tranquil camp", isGood: true);
-                    region.LastOmenSignDay = region.Clock.Day;
+                    if (b.Band.Members.Count == 0) continue;
+                    var offenderDeed = b.Band.Members
+                        .Where(m => m.Alive)
+                        .SelectMany(m => m.OwnDeeds)
+                        .Where(r => (r.Deed.Act == Act.Attack || r.Deed.Act == Act.Take) && region.Clock.Day - r.Deed.Day <= 15)
+                        .OrderByDescending(r => r.Deed.Day)
+                        .FirstOrDefault();
+                    if (offenderDeed.Deed != null)
+                    {
+                        var d = offenderDeed.Deed;
+                        b.LastWitnessedDeed = new Deed { Day = region.Clock.Day, Actor = d.Actor, Act = d.Act, Amount = Math.Max(1.5, d.Amount) };
+                        if (d.Actor.Alive && region.GodHarm >= 4.0 && region.CanCastLightning(d.Actor) && region.Favor >= 35.0)
+                        {
+                            region.CastLightning(d.Actor);
+                        }
+                        else
+                        {
+                            region.CastOmen((int)b.Band.CampX, (int)b.Band.CampY, "The all-seeing watcher thundered against hidden wrongdoing", isGood: false);
+                        }
+                        region.LastOmenSignDay = region.Clock.Day;
+                        break;
+                    }
                 }
+            }
+
+            // Answers prayers of the innocent who have not stolen or attacked
+            var unhelped = region.ActivePrayers.FirstOrDefault(p => !p.Resolved && !p.PowerCasted && p.LastSignDay < p.StartDay &&
+                !p.Asker.OwnDeeds.Any(rem => (rem.Deed.Act == Act.Take || rem.Deed.Act == Act.Attack) && region.Clock.Day - rem.Deed.Day <= SimClock.DaysPerSeason));
+            if (unhelped != null && region.Favor >= 10.0 && region.Clock.Day - region.LastOmenSignDay >= 14)
+            {
+                var camp = region.Bands.FirstOrDefault(b => b.Band.CampX == unhelped.CampX && b.Band.CampY == unhelped.CampY);
+                if (camp != null) camp.LastWitnessedDeed = null;
+                region.CastOmen(unhelped.CampX, unhelped.CampY, "The stern watcher heard the plea of the blameless", isGood: true);
+                unhelped.LastSignDay = region.Clock.Day;
+                region.LastOmenSignDay = region.Clock.Day;
             }
         }
 
@@ -653,6 +721,7 @@ namespace Anthro.Sim
                 if (roll < 0.20 && region.Favor >= 25.0 && region.Clock.Day - camp.LastBountyDay >= 45)
                 {
                     bool animals = region.GodRng.Chance(0.5);
+                    camp.LastWitnessedDeed = null;
                     region.CastBounty((int)camp.Band.CampX, (int)camp.Band.CampY, animals: animals);
                     camp.LastBountyDay = region.Clock.Day;
                 }
@@ -668,6 +737,7 @@ namespace Anthro.Sim
                     string desc = isGood
                         ? "A strange radiant glimmer danced across the noon sky"
                         : "A sudden eerie shadow darkened the noon sun";
+                    camp.LastWitnessedDeed = null;
                     region.CastOmen((int)camp.Band.CampX, (int)camp.Band.CampY, desc, isGood: isGood);
                     region.LastOmenSignDay = region.Clock.Day;
                 }
