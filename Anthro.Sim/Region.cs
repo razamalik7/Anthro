@@ -24,6 +24,7 @@ namespace Anthro.Sim
         public static readonly double KnownRange = WorldMap.FromMeters(15000);
 
         public readonly Rng Rng;
+        public readonly Rng GodRng;
         public readonly SimClock Clock = new SimClock();
         /// <summary>Events that belong to the land rather than to a band (animals, bands appearing and vanishing).</summary>
         public readonly Chronicle Chronicle = new Chronicle();
@@ -54,6 +55,7 @@ namespace Anthro.Sim
         Region(ulong seed, DiscoveryWeb? web)
         {
             Rng = new Rng(seed);
+            GodRng = new Rng(seed ^ 0x60D5EEDUL, 0x60D5EEDUL);
             Web = web;
             // The story opens in late summer: food is plentiful and autumn's stockpiling is ahead,
             // as it would be for bands that have been living here for generations.
@@ -104,8 +106,23 @@ namespace Anthro.Sim
                 {
                     var model = elders[Rng.Range(0, elders.Count)];
                     foreach (var kv in model.Expect.Snapshot())
+                    {
                         if (kv.Key.StartsWith("act:") || kv.Key.StartsWith("tactic:") || kv.Key.StartsWith("wed:") || kv.Key.StartsWith("bound:") || kv.Key.StartsWith("norm:"))
                             p.Expect.Absorb(kv.Key, kv.Value + Rng.Normal(0, 0.1), 1, kv.Value);
+                        else if (!Simulation.Off("god") && kv.Key.StartsWith("god:"))
+                        {
+                            double jitter = GodRng.Normal(0, 0.03);
+                            double val = kv.Key switch
+                            {
+                                "god:real" => Math.Clamp(kv.Value + jitter, 0.08, 0.35),
+                                "god:answers" => Math.Clamp(kv.Value + jitter * 0.5, 0.02, 0.18),
+                                "god:thank" => Math.Clamp(kv.Value + jitter, 0.02, 0.28),
+                                "god:offer" => kv.Value > 0 ? Math.Max(0.0, kv.Value + jitter * 0.5) : 0.0,
+                                _ => Math.Clamp(kv.Value + jitter, -1.0, 1.0)
+                            };
+                            p.Expect.Absorb(kv.Key, val, 1, kv.Value);
+                        }
+                    }
                 }
             }
             var tribe = Bands.Where(b => b.Tribe == founders.Tribe).ToList();
@@ -125,6 +142,8 @@ namespace Anthro.Sim
 
         public void Step()
         {
+            BotGod.Step(this);
+            ApplyGodCommands();
             if (Clock.Hour == 0) using (Profiler.Measure("daily")) Daily();
             foreach (var band in Bands.ToList())
                 if (!band.Extinct) band.StepHour();
@@ -142,6 +161,7 @@ namespace Anthro.Sim
         {
             int dayOfYear = Clock.DayOfYear;
             var climate = World.Climate;
+            if (Clock.DayOfSeason == 0) climate.SeasonOverride = 0;
             // Each cell has its own weather and regrows on its own, so the map is shared out across the processor's cores.
             using (Profiler.Measure("daily plants"))
                 System.Threading.Tasks.Parallel.For(0, World.Size, x => { for (int y = 0; y < World.Size; y++) World.Cells[x, y].DailyRegrow(climate, dayOfYear); });
@@ -151,6 +171,22 @@ namespace Anthro.Sim
                 foreach (var c in World.All())
                     if (c.PlantCapacity > c.WildCapacity && c.WildCapacity > 0) c.PlantCapacity -= (c.PlantCapacity - c.WildCapacity) * 0.05;
             foreach (var band in Bands.ToList()) band.Daily();
+            ResolvePrayers();
+            if (!Simulation.Off("god") && !GodFaded)
+            {
+                DaysTotal++;
+                double sustainable = SustainableFavor;
+                if (Favor > sustainable)
+                {
+                    double excess = Favor - sustainable;
+                    Favor -= excess * FavorLeakRate;
+                }
+                if (Favor < 5.0)
+                {
+                    DaysBroke++;
+                    if (FirstBrokeDay < 0) FirstBrokeDay = Clock.Day;
+                }
+            }
             using (Profiler.Measure("daily meetings")) Meetings();
             using (Profiler.Measure("daily encounters")) Encounters();
             foreach (var gone in Bands.Where(b => b.Extinct).ToList())
@@ -168,6 +204,7 @@ namespace Anthro.Sim
             _reporting.AddRange(Bands);
             NewWeatherYear();
             ConsiderSchisms();
+            PrayersAskedYear = PrayersResolvedGoodYear = PrayersResolvedBadYear = 0;
             YearEnded?.Invoke(stats);
         }
 

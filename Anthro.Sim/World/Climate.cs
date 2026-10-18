@@ -14,14 +14,14 @@ namespace Anthro.Sim.World
     public sealed class Climate
     {
         /// <summary>Standard deviations from a normal winter. Above 1 is a hard winter.</summary>
-        public double WinterSeverity { get; private set; }
-        public double YearWarmth { get; private set; }
+        public double WinterSeverity { get; internal set; }
+        public double YearWarmth { get; internal set; }
 
         /// <summary>This year's crops relative to an average year (1): the nut mast, berries, wild grain, and the fish runs.</summary>
-        public double Mast { get; private set; } = 1;
-        public double Berries { get; private set; } = 1;
-        public double Grain { get; private set; } = 1;
-        public double FishRun { get; private set; } = 1;
+        public double Mast { get; internal set; } = 1;
+        public double Berries { get; internal set; } = 1;
+        public double Grain { get; internal set; } = 1;
+        public double FishRun { get; internal set; } = 1;
 
         /// <summary>Added by the god's weather power; reset each season.</summary>
         public double SeasonOverride { get; set; }

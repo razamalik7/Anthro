@@ -269,8 +269,10 @@ namespace Anthro.Sim.Activities
                     var owner = h.Adults(clock).OrderByDescending(a => p.GetAffinity(a)).FirstOrDefault();
                     double guilt = owner == null ? 0 : Simulation.Guilt(p, owner);
                     double plenty = Math.Min(1, Simulation.SpareFor(h, home) / amount);
-                    double ask = Simulation.Expects(p, Act.Ask, rel) * plenty;
-                    double take = pSeen * Simulation.Expects(p, Act.Take, rel, true) + (1 - pSeen) * Simulation.Expects(p, Act.Take, rel, false) - guilt;
+                    double godAsk = Simulation.GodActValue(p, Act.Ask);
+                    double ask = (Simulation.Expects(p, Act.Ask, rel) + godAsk) * plenty;
+                    double godTake = Simulation.GodActValue(p, Act.Take);
+                    double take = pSeen * Simulation.Expects(p, Act.Take, rel, true) + (1 - pSeen) * Simulation.Expects(p, Act.Take, rel, false) - guilt + godTake;
                     if (ask > bestAsk) { bestAsk = ask; askAt = h; }
                     if (take > bestTake) { bestTake = take; takeAt = h; }
                 }
@@ -309,7 +311,8 @@ namespace Anthro.Sim.Activities
                     double confront = sim.ConfrontValue(p, target, backing);
                     // Fear of them, and of the kin and friends who'd stand with them.
                     double fear = backing / Math.Max(0.1, p.B(BodyTrait.Strength) * p.Health) * 0.3 + p.Injury;
-                    double attack = heat * p.M(MindTrait.Temper) * 1.5 + Simulation.Felt(Simulation.Expects(p, Act.Attack, rel)) - guilt - fear * p.W(Drive.Safety);
+                    double godAttack = Simulation.GodActValue(p, Act.Attack);
+                    double attack = heat * p.M(MindTrait.Temper) * 1.5 + Simulation.Felt(Simulation.Expects(p, Act.Attack, rel)) - guilt - fear * p.W(Drive.Safety) + godAttack;
                     var t = target;
                     if (confront > 0) options.Add(new Option(Verb.Confront, confront, () => new Confront(p, t)));
                     if (attack > 0) options.Add(new Option(Verb.Attack, attack, () => new Assault(p, t)));
@@ -332,7 +335,8 @@ namespace Anthro.Sim.Activities
                         double heat = hate / (hate + 3);
                         double guilt = Simulation.Felt(Simulation.Guilt(p, alone)) * 0.5;
                         double fear = alone.B(BodyTrait.Strength) * alone.Health / Math.Max(0.1, p.B(BodyTrait.Strength) * p.Health) * 0.3 + p.Injury;
-                        double ambush = heat * p.M(MindTrait.Temper) * 1.5 + Simulation.Felt(Simulation.Expects(p, Act.Attack, rel, false)) - guilt - fear * p.W(Drive.Safety);
+                        double godAmbush = Simulation.GodActValue(p, Act.Attack);
+                        double ambush = heat * p.M(MindTrait.Temper) * 1.5 + Simulation.Felt(Simulation.Expects(p, Act.Attack, rel, false)) - guilt - fear * p.W(Drive.Safety) + godAmbush;
                         var t = alone;
                         if (ambush > 0) options.Add(new Option(Verb.Attack, ambush, () => new Ambush(p, t)));
                     }
@@ -421,6 +425,156 @@ namespace Anthro.Sim.Activities
                     options.Add(new Option(Verb.WatchAndLearn, 0.5 + p.M(MindTrait.Curiosity) * 0.6, () => new WatchAndLearn(p, teacher, skill, interest)));
                 }
             }
+
+            // Praying: a plea for a need beyond one's means (hunger with little food, own or a child's sickness, fear/injury)
+            // value = need_severity * god:real * god:answers.
+            // Praying: a plea for a need beyond one's means (starvation crisis, severe illness of self/child, severe wound).
+            // Value = need_severity * god:real * god:answers. Only when no prayer is already open.
+            if (!Simulation.Off("god") && !Simulation.Off("pray") && maturity > 0.3 && !sim.Region.HasOpenPrayer(p))
+            {
+                double real = Simulation.GodReal(p);
+                double answers = Simulation.GodAnswers(p);
+                if (real > 0.05 && answers > 0.02)
+                {
+                    double hungerNeed = 0;
+                    double foodPerPerson = band.FoodTotal / Math.Max(1, people);
+                    if (p.Satiety < 0.8)
+                    {
+                        double desperation = (1.0 - p.Satiety) * Math.Max(0, 1.0 - foodPerPerson / 3.0);
+                        hungerNeed = desperation * 1.5;
+                    }
+
+                    double sickNeed = p.Sickness > 0.3 ? p.Sickness : 0;
+                    Person? sickTarget = null;
+                    var sickKid = home.Members.Where(m => m != p && m.AgeYears(clock) < 10 && m.Sickness > 0.3)
+                                              .OrderByDescending(m => m.Sickness).FirstOrDefault();
+                    if (sickKid != null && sickKid.Sickness > sickNeed)
+                    {
+                        sickNeed = sickKid.Sickness;
+                        sickTarget = sickKid;
+                    }
+
+                    double fearNeed = p.Injury > 0.4 ? p.Injury : 0;
+
+                    PrayerNeed bestNeed = PrayerNeed.Hunger;
+                    double maxNeed = hungerNeed;
+                    if (sickNeed > maxNeed) { maxNeed = sickNeed; bestNeed = PrayerNeed.Sickness; }
+                    if (fearNeed > maxNeed) { maxNeed = fearNeed; bestNeed = PrayerNeed.Danger; }
+
+                    if (maxNeed > 0.15)
+                    {
+                        double score = maxNeed * real * answers;
+                        if (score > 0.020)
+                            options.Add(new Option(Verb.Pray, score, () => new Pray(p, bestNeed, sickTarget)));
+                    }
+                }
+            }
+
+            // Everyday devotion: thanksgiving in good/comfortable times (D1 owner decision 2026-10-13)
+            // Value = belief * learned return of thanking (god:thank) scaled by current wellbeing
+            if (!Simulation.Off("god") && !Simulation.Off("pray") && maturity > 0.3 && Simulation.AtCamp(p) && p.Satiety >= 0.55 && p.Health >= 0.6 && p.ThanksUrge >= 1.0)
+            {
+                double real = Simulation.GodReal(p);
+                double thankReturn = Simulation.GodThank(p);
+                if (real > 0.15 && thankReturn > 0.03)
+                {
+                    double thankPull = real * thankReturn * (1.0 - hunger * 0.6);
+                    double thankScore = 0.35 + 1.2 * thankPull + 0.25 * (p.ThanksUrge - 1.0);
+                    if (thankScore > 0.1)
+                    {
+                        options.Add(new Option(Verb.Pray, thankScore, () =>
+                        {
+                            p.ThanksUrge = 0.0;
+                            p.LastThanksDay = clock.Day;
+                            return new Pray(p, PrayerNeed.Thanks);
+                        }));
+                    }
+                }
+            }
+
+            // Offer to the god: give up food/goods at a sacred spot or hearth
+            // Path 1: Learned offering habit (value = belief * Felt(learned return) * scale; sized by means).
+            //         An offering is a communal feast: held when camp offer urge is ready and people are not stuffed.
+            // Path 2: Escalated plea (B2 owner decision 2026-10-12): When a prayer is open, the need is desperate
+            //         and the plea is going unanswered, the person adds a gift to the plea.
+            //         Value = desperation * belief, an improvisation bargaining with the unseen.
+            if (!Simulation.Off("god") && !Simulation.Off("offer") && maturity > 0.6 && Simulation.AtCamp(p) && home.Food.Total >= 0.5)
+            {
+                double real = Simulation.GodReal(p);
+                if (real > 0.05)
+                {
+                    double offerScore = 0.0;
+                    double offerAmount = 0.0;
+                    Prayer? escalatedPrayer = null;
+
+                    // Path 1: Learned offering habit (communal shared feast or fear appeasement)
+                    double learned = Simulation.GodOffer(p);
+                    if (learned > 0.0 && sim.OfferUrge >= 1.0 && home.Food.Total >= 2.0 && home.DaysOfFood >= 2.0 && p.Stomach < 0.85)
+                    {
+                        double feltReturn = Simulation.Felt(learned);
+                        double kind = Simulation.GodKind(p);
+                        double scale = 1.0;
+                        if (kind > 0)
+                            scale += kind * (0.5 + p.M(MindTrait.Warmth));
+                        else if (kind < 0)
+                            scale += Math.Abs(kind) * p.W(Drive.Safety);
+
+                        offerScore = 0.35 + 0.60 * real * feltReturn * scale + 0.25 * (sim.OfferUrge - 1.0);
+                        offerAmount = Math.Min(1.5, home.Food.Total * 0.12);
+                    }
+
+                    // Path 2: Escalated plea (B2) or appeasement improvisation in dread
+                    Prayer? openPrayer = sim.Region.ActivePrayers.FirstOrDefault(pr => pr.Asker == p && !pr.Resolved);
+                    if (openPrayer != null && !openPrayer.HasOffering && sim.Clock.Day > openPrayer.StartDay && sim.OfferUrge >= 0.5)
+                    {
+                        double desperation = 0.0;
+                        if (openPrayer.Need == PrayerNeed.Hunger)
+                            desperation = (1.0 - p.Satiety) * Math.Max(0.5, 1.0 - home.Food.Total / 4.0);
+                        else if (openPrayer.Need == PrayerNeed.Sickness)
+                            desperation = (openPrayer.SickTarget ?? p).Sickness;
+                        else if (openPrayer.Need == PrayerNeed.Danger)
+                            desperation = p.Injury;
+                        else
+                            desperation = 0.5;
+
+                        if (desperation > 0.35)
+                        {
+                            double escalatedScore = 0.38 + desperation * (0.4 + 0.6 * real) * (0.6 + p.M(MindTrait.Credulity) * 0.4);
+                            if (escalatedScore > offerScore)
+                            {
+                                offerScore = escalatedScore;
+                                offerAmount = Math.Min(1.0, Math.Max(0.2, home.Food.Total * 0.15));
+                                escalatedPrayer = openPrayer;
+                            }
+                        }
+                    }
+                    else if (!Simulation.Off("relief") && p.Dread > 0.25 && sim.OfferUrge >= 0.4 && home.Food.Total >= 1.0)
+                    {
+                        double dreadScore = 0.40 + p.Dread * (0.4 + 0.6 * real) * (0.6 + p.M(MindTrait.Credulity) * 0.4);
+                        if (dreadScore > offerScore)
+                        {
+                            offerScore = dreadScore;
+                            offerAmount = Math.Min(1.0, Math.Max(0.2, home.Food.Total * 0.15));
+                        }
+                    }
+
+                    if (offerScore > 0.1 && offerAmount > 0.0)
+                    {
+                        options.Add(new Option(Verb.Offer, offerScore, () =>
+                        {
+                            sim.OfferUrge = 0.0;
+                            if (escalatedPrayer != null && !escalatedPrayer.Resolved)
+                            {
+                                escalatedPrayer.HasOffering = true;
+                                escalatedPrayer.OfferingDay = sim.Clock.Day;
+                                sim.Region.OfferingsFromPleaCount++;
+                            }
+                            return new Offer(p, offerAmount);
+                        }));
+                    }
+                }
+            }
+
             // What this person cares about weighs their options: their own drive weights.
             for (int i = 0; i < options.Count; i++)
             {
@@ -433,6 +587,7 @@ namespace Anthro.Sim.Activities
                     Verb.Socialize or Verb.Visit or Verb.Play => p.W(Drive.Company),
                     Verb.Care => p.W(Drive.Family),
                     Verb.Confront or Verb.Attack or Verb.Rally or Verb.Raid => p.W(Drive.Standing) / p.W(Drive.Safety),
+                    Verb.Pray or Verb.Offer => p.W(Drive.Safety),
                     _ => 1,
                 };
                 if (w != 1) options[i] = new Option(o.Verb, o.Score * w, o.Make);
@@ -445,7 +600,7 @@ namespace Anthro.Sim.Activities
                 bool essential = o.Verb == Verb.Forage || o.Verb == Verb.Hunt || o.Verb == Verb.Fish || o.Verb == Verb.Trap || o.Verb == Verb.Eat || o.Verb == Verb.Rest
                                  || o.Verb == Verb.Care || o.Verb == Verb.Sleep || o.Verb == Verb.Socialize
                                  || o.Verb == Verb.Cook || o.Verb == Verb.GatherWood || o.Verb == Verb.Preserve
-                                 || o.Verb == Verb.Ask || o.Verb == Verb.Take;
+                                 || o.Verb == Verb.Ask || o.Verb == Verb.Take || o.Verb == Verb.Pray;
                 if (!essential) options[i] = new Option(o.Verb, o.Score * (1 - hunger * 0.7), o.Make);
             }
             return options;

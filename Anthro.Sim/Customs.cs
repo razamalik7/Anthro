@@ -30,7 +30,7 @@ namespace Anthro.Sim
     {
         static readonly HashSet<string> _off = new HashSet<string>((Environment.GetEnvironmentVariable("ANTHRO_OFF") ?? "").Split(','));
         /// <summary>For experiments only: whether a feature has been switched off (ANTHRO_OFF).</summary>
-        internal static bool Off(string feature) => _off.Contains(feature);
+        public static bool Off(string feature) => _off.Contains(feature);
 
         internal const string RationTopic = "norm:rationing", DemandTopic = "norm:demand", EldersTopic = "norm:elders", HuntingTopic = "norm:hunting";
         internal const string SidesTopic = "norm:sides", DuelTopic = "norm:duel";

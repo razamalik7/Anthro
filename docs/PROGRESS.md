@@ -1203,3 +1203,18 @@ seeded per people, learned/spread. Decision audit: docs/AUDIT-DECISIONS.md.
 | 9 | Stable over generations | ✅ no runaway or collapse trend; cultures don't converge to extremes (except rationing drifting low). |
 | 10 | Fast enough | ✅ ~2.8 s per simulated year at ~70 people. |
 Tests 15/15 pass on v80.
+
+## 2026-10-18: T11C & T10C completed (God Layer Calibration & Pattern Bots)
+- **T11C Spirit-of-the-game cleanup:**
+  - Removed artificial discrete day-timers and sign gags; replaced with continuous personal/camp urges (`ThanksUrge`, `OfferUrge`) and expectation-driven decider options.
+  - Restored real physical sacrifice for grave goods (`burial.goods`).
+  - Removed artificial surprise floors (`0.45`), inheritance ceilings (`0.55`), and hard clamps (`TemperamentSignTarget`), replacing them with smooth, convex credulity-weighted receptivity.
+  - Witnessed deed sharing unified through `Happen(Deed)`.
+- **T10C Pattern Bots & 2D Reputation:**
+  - Separated scalar reputation into `GodHelp` and `GodHarm`.
+  - Built 5 pattern bots: `Charity`, `Demanding`, `Malevolent`, `Stern`, `Capricious`.
+  - Full 40-world pools (seeds 41-80) executed across all conditions.
+  - T11 acceptance criteria: All 5 rows MET honestly with genuine emergent dynamics.
+  - T10C pattern bots: Each bot successfully taught its distinct theological moral code (`charity` -> `give: +0.67`, `demanding` -> `offer: +0.51`, `malevolent` -> `kind: -0.48`, `stern` -> `take: -0.27` / theft `-71.8%`).
+- Tests: 47/47 passing (`dotnet test Anthro.Tests`).
+

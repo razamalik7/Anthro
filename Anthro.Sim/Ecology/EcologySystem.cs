@@ -256,6 +256,19 @@ namespace Anthro.Sim.Ecology
             }
         }
 
+        /// <summary>Spawn an animal group at a location (used by divine bounty or migrations).</summary>
+        public AnimalGroup SpawnGroup(Species sp, double x, double y, int count, Region sim)
+        {
+            var g = new AnimalGroup(_nextId++, sp, count, x, y)
+            {
+                Condition = 1.0,
+                Rng = sim.GodRng.Fork((ulong)_nextId)
+            };
+            _groups.Add(g);
+            Index();
+            return g;
+        }
+
         // ---- Where the animals are (for who can see them) -----------------------------------------
 
         const int Bucket = 25;

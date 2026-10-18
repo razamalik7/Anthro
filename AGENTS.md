@@ -1,5 +1,7 @@
 # Working on Anthro (for any AI agent)
 
+**New here? Read `docs/HANDOFF.md` first** (reading order, current state, the owner's standing preferences in `docs/agent-memory/`).
+
 Anthro is an anthropological / evolution god-sim. The simulation is plain C# (`Anthro.Sim`, netstandard2.1,
 C# 9, no Unity references) and runs headless; Unity comes later for presentation. Read `docs/PLANNING.md`
 (the vision), `docs/REFLECTION.md` (where we are vs the plan) and the tail of `docs/PROGRESS.md` (latest
@@ -7,9 +9,9 @@ state) before changing anything. Current work: **the god layer**, spec in `docs/
 `docs/PHASE1-TASKS.md`.
 
 ## Roles
-- **Claude (Opus)**: design decisions, specs, reviews. Budget-limited: hand it short reports, not logs.
-- **Implementer (Antigravity: Gemini Pro / Sonnet)**: one task at a time from `docs/PHASE1-TASKS.md`.
-- **Runner (Gemini Flash)**: builds, multi-world runs, extracting numbers into reports.
+- **Overseer / Architect (Antigravity: Argon / Claude Opus / Gemini Pro)**: design decisions, specs, reviewing reports against core rules, maintaining mathematical and anthropological rigor.
+- **Implementer (Antigravity)**: one task at a time from `docs/PHASE1-TASKS.md`, adhering to the non-negotiable design rules.
+- **Runner (Antigravity / Flash)**: builds, multi-world parallel pools, paired bootstrap CI extraction, regression checks.
 - **The owner** decides anything that changes how the world works or what people value.
 
 ## The design rules (non-negotiable)
@@ -59,6 +61,18 @@ Use the full dotnet path on this machine: `"/c/Program Files/dotnet/dotnet"` (Gi
   Use `wait` on the processes.
 - The **no-god baseline must not change** (population, starvation, violence, discovery pace within noise of
   the reference runs) unless the task says so.
+
+## Don't waste runs (multi-world runs are the biggest time cost)
+- **Never re-run reference results.** `runs/godoff_*` (seeds 41-60) and `runs/godoff2_*` (61-80) are the god-off
+  references; reuse them. Reuse any earlier run whose code hasn't changed since (say which file you reused).
+- **Only run conditions the change can affect.** E.g. a change to offerings needs idle + the bots that use
+  offerings, not every bot and every ablation. Ablations only when a result needs explaining.
+- **God-off identity check:** 5 seeds per batch (e.g. 41-45) is enough while developing; all 20 only before a
+  merge to master.
+- **Iterate small, confirm big.** While developing, use 3-5 worlds to see that something works at all (no
+  conclusions from them). Run the full two-set comparison **once**, at the end of the batch, on the final code.
+- **Unit tests once per batch**, at the end (they take ~5 min), plus the specific new test while writing it.
+- If a full comparison was already done for this exact code, don't repeat it for the report.
 
 ## Workflow
 - One task per git branch (`task/T1-belief` …); commit when its acceptance check passes. Never commit to

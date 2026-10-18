@@ -123,7 +123,7 @@ namespace Anthro.Sim.Activities
         protected override void OnEnd(Simulation sim)
         {
             if (_with == null) return;
-            using (Core.Profiler.Measure("talk exchange")) SocialLearning.Exchange(P, _with, sim.Rng);
+            using (Core.Profiler.Measure("talk exchange")) SocialLearning.Exchange(P, _with, sim.Rng, sim.Region?.GodRng);
             using (Core.Profiler.Measure("talk gossip")) sim.Gossip(P, _with);
             using (Core.Profiler.Measure("talk passon")) { sim.PassOn(P, _with); sim.PassOn(_with, P); }
             using (Core.Profiler.Measure("talk places")) { sim.TellPlaces(P, _with); sim.TellPlaces(_with, P); }
@@ -224,9 +224,149 @@ namespace Anthro.Sim.Activities
             }
             sim.Contact(P, _teacher, 0.5);
             P.AddAffinity(_teacher, 0.01);
-            // Children soak up what the adults around them believe, along with the skill.
+            // Children soak up what the adults around them believe, along with the skill, filtered by their own credulity.
+            double cred = P.M(MindTrait.Credulity);
             foreach (var kv in _teacher.Expect.Snapshot())
-                P.Expect.Absorb(kv.Key, kv.Value, 0.05 * (0.5 + P.M(MindTrait.Openness)), kv.Value);
+            {
+                if (kv.Key.StartsWith("god:"))
+                {
+                    double targetVal = kv.Key == "god:real"
+                        ? kv.Value * Math.Clamp(1.25 * (cred - 0.12), 0.05, 1.0)
+                        : kv.Value * (0.35 + 0.65 * cred);
+                    double defVal = kv.Key == "god:real" ? 0.2 : 0.0;
+                    P.Expect.Absorb(kv.Key, targetVal, 0.008 * (0.5 + P.M(MindTrait.Openness)) * cred, P.Expect.Get(kv.Key, defVal));
+                }
+                else
+                {
+                    P.Expect.Absorb(kv.Key, kv.Value, 0.05 * (0.5 + P.M(MindTrait.Openness)), kv.Value);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// A plea to the unseen power for help with a need beyond one's means.
+    /// Done at camp, seen by others. Creates an open request with the God layer.
+    /// </summary>
+    public sealed class Pray : TimedActivity
+    {
+        readonly PrayerNeed _need;
+        readonly Person? _target;
+
+        public Pray(Person p, PrayerNeed need, Person? target = null) : base(p, 1)
+        {
+            Step = need == PrayerNeed.Thanks ? "giving thanks" : "praying";
+            _need = need;
+            _target = target;
+        }
+
+        public override Verb Verb => Verb.Pray;
+        protected override double FatiguePerHour => 0.01;
+
+        protected override void OnHour(Simulation sim)
+        {
+            sim.RegisterPrayer(P, _need, _target);
+        }
+    }
+
+    /// <summary>
+    /// Giving up food or goods at a sacred spot or hearth for the god.
+    /// Valued by belief and expected favor return; size scaled by the giver's means.
+    /// Generates divine favor; fear offerings (for a cruel god) provide heightened favor.
+    /// </summary>
+    public sealed class Offer : TimedActivity
+    {
+        readonly double _amount;
+
+        public Offer(Person p, double amount) : base(p, 1)
+        {
+            Step = "offering";
+            _amount = amount;
+        }
+
+        public override Verb Verb => Verb.Offer;
+        protected override double FatiguePerHour => 0.01;
+
+        protected override void OnHour(Simulation sim)
+        {
+            if (Simulation.Off("god") || Simulation.Off("offer")) return;
+            var home = sim.HomeOf(P);
+            if (home == null || home.Food.Total <= 0) return;
+
+            double actual = home.Food.Take(Math.Min(_amount, home.Food.Total), out _);
+            if (actual <= 0) return;
+
+            // A4a (owner decision 2026-10-12): An offering is a meal shared with the god.
+            // Only 15% is burned/sacrificed for the god; 85% is eaten at a shared feast by those in camp,
+            // nourishing them and bonding the group like a gathering.
+            double burned = actual * 0.15;
+            double shared = actual - burned;
+
+            var attendees = sim.Band.Members.Where(m => !(m.Current is Visit) && m.AgeYears(sim.Clock) >= 1).ToList();
+            if (attendees.Count > 0)
+            {
+                double portion = shared / attendees.Count;
+                foreach (var m in attendees)
+                {
+                    m.Stomach = Math.Min(1.2, m.Stomach + portion / Math.Max(0.1, sim.DailyNeed(m)));
+                }
+                sim.ThisYear.Eaten += shared;
+
+                // Shared sacred feast bonds attendees (like Gatherings.cs)
+                for (int i = 0; i < attendees.Count; i++)
+                {
+                    for (int j = i + 1; j < Math.Min(attendees.Count, i + 6); j++)
+                    {
+                        var a = attendees[i]; var b = attendees[j];
+                        if (a.GetAffinity(b) < 0.3) a.AddAffinity(b, 0.01);
+                        if (b.GetAffinity(a) < 0.3) b.AddAffinity(a, 0.01);
+                    }
+                }
+                foreach (var m in attendees) m.Discontent *= 0.95;
+            }
+
+            double real = Simulation.GodReal(P);
+            double kind = Simulation.GodKind(P);
+            // Disposition factor: fear appeasement when cruel, devotion/gratitude when kind
+            double dispositionFactor = 1.0 + Math.Abs(kind) * 1.5 + P.Dread * 1.2;
+            // Favor comes from the burned sacrifice plus a modest collective reverence/fear of the gathered camp
+            double attendeeFaith = attendees.Where(a => a.AgeYears(sim.Clock) >= 14).Sum(a => Simulation.GodReal(a) * (0.06 + 0.12 * a.Dread));
+            double gain = (burned * real * 8.0 + attendeeFaith) * dispositionFactor;
+
+            sim.Region.FavorEarnedOffer += gain;
+            sim.Region.AddFavor(gain);
+            sim.ThisYear.FavorGain += gain;
+            sim.ThisYear.FoodOffered += burned;
+            var oSeason = sim.Clock.Season;
+            sim.ThisYear.DevotionBySeason[oSeason] = sim.ThisYear.DevotionBySeason.TryGetValue(oSeason, out var oDv) ? oDv + 1 : 1;
+            if (P.Satiety >= 0.6) sim.ThisYear.DevotionFed++; else sim.ThisYear.DevotionHungry++;
+
+            var deed = new People.Deed { Day = sim.Clock.Day, Actor = P, Act = People.Act.Offer, Amount = burned, Hearth = home };
+            foreach (var m in attendees.Where(a => a.AgeYears(sim.Clock) >= 6))
+            {
+                if (m != P && !m.Deeds.Any(d => d.Deed.Actor == P && d.Deed.Act == People.Act.Offer && d.Deed.Day == sim.Clock.Day))
+                {
+                    m.Deeds.Add(new People.Remembered(deed, true));
+                }
+                if (!Simulation.Off("relief") && m.Dread > 0.05)
+                {
+                    m.AppeasementAct = "offer";
+                    m.AppeasementDread = m.Dread;
+                }
+            }
+
+            var openPrayer = sim.Region.ActivePrayers.FirstOrDefault(pr => pr.Asker == P && !pr.Resolved);
+            if (openPrayer != null && !openPrayer.HasOffering)
+            {
+                openPrayer.HasOffering = true;
+                openPrayer.OfferingDay = sim.Clock.Day;
+                sim.Region.OfferingsFromPleaCount++;
+            }
+
+            sim.Chronicle.Write(sim.Clock, Anthro.Sim.Core.Importance.Detail, $"{P.Name} held an offering feast of {actual:F1} rations ({burned:F1} burned for the god).");
+            sim.Region.GodEvents.Add(new GodEvent(sim.Clock.Tick, "Offer", $"{P.Name} held an offering feast ({burned:F1} burned, +{gain:F1} favor)", (int)sim.Band.CampX, (int)sim.Band.CampY));
+            
+            sim.HappenHere(deed);
         }
     }
 }

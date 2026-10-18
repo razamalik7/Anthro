@@ -133,3 +133,20 @@ Still open:
 - Hunting prestige: cultural only (a share-of-food signal was self-reinforcing and was removed).
 - Weir build rate (~12 person-hours), decay (~1 year unmaintained): hand-set world facts.
 - Badly-wounded threshold (0.6) for being unable to fight: a body fact, hand-set.
+
+## Additions 2026-10-18 (T11C / T10C — God Layer Calibration & Pattern Bots)
+
+Fixed / Emergent Replacements:
+- Removed day-counter timers and gags (`LastGodSignDay >= 0`, `DailyThanksCount`, `LastOfferFeastDay`) in favor of continuous personal and camp urges (`ThanksUrge`, `OfferUrge`) and learned expectation returns.
+- Removed artificial `0.45` surprise floor in `Credit.cs` and artificial `0.55` ceiling on belief inheritance.
+- Replaced hard belief clamp `TemperamentSignTarget` with smooth, convex credulity-weighted receptivity: `Pow(Clamp((cred - 0.12) / 0.75, 0.05, 1.5), 1.6)`.
+- Restored genuine physical costs for grave goods (`burial.goods` in `Kill`).
+- Separated scalar `Reputation` into 2D independent dimensions `GodHelp` and `GodHarm`.
+
+Hand-set Numbers (disclosed):
+- `Belief.cs`: `SeedBelief` `baseReal` in `[0.14, 0.30]` (individual `[0.08, 0.35]`), `baseAnswers` `[0.02, 0.18]`, `baseThank` `[0.12, 0.22]`; `FadeBelief` `restReal = Clamp(0.04 + 0.24 * cred, 0.04, 0.26)`, `fadeRate = 0.00032 * Pow(Clamp((1.15 - cred) / 0.65, 0.30, 2.2), 1.50)`; moral `god:<act>` relaxation `0.0002/day`; daily `ThanksUrge += (0.020 + 0.12 * real * thank) * (0.45 + 0.55 * signFreshness)`.
+- `Decider.cs`: Thanksgiving trigger `ThanksUrge >= 1.0` (`thankScore = 0.35 + 1.2 * thankPull + 0.25 * (ThanksUrge - 1.0)`); offering trigger `sim.OfferUrge >= 1.0` (`offerScore = 0.35 + 0.60 * real * feltReturn * scale + 0.25 * (OfferUrge - 1.0)`).
+- `CampActivities.cs` / `Prayers.cs`: Thanksgiving favor `0.45 * real`; crisis plea favor `1.5 * real`; offering favor `(burned * real * 8.0 + attendeeFaith) * (1.0 + |kind| * 1.5 + dread * 1.2)`.
+- `God.cs`: `SustainableFavor = Math.Max(50.0, People.Sum(GodReal) * 4.0)`, `FavorLeakRate = 0.02/day`. Heal unlock `GodHelp >= 4.0`, Lightning unlock `GodHarm >= 4.0`. Max discount factor `0.40`.
+- `BotGod.cs`: Pattern bots `Charity` (24-tick give window, 10–16d omen cooldown), `Demanding` (48-tick offer window, 35d lapse threshold), `Malevolent` (35d appeasement window, 16d omen / 90d lightning cooldown), `Stern` (36-tick immediate / 15d noon wrongdoer check), `Capricious` (daily noon 0.06 roll).
+

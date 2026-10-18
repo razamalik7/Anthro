@@ -84,7 +84,7 @@ namespace Anthro.Sim
             // and at peace with the family has no cause to rob them, however well it went last time).
             double motive = anger / (anger + 3) + hunger * plenty;
             bool off = Off("rallymotive");
-            double learned = Felt(Expects(p, Act.Take, rel, true)) * (off ? 1 : Math.Min(1, motive * 2));
+            double learned = (Felt(Expects(p, Act.Take, rel, true)) + GodActValue(p, Act.Take)) * (off ? 1 : Math.Min(1, motive * 2));
             // Joining a gang is taking sides: some peoples close ranks readily, others keep out of it.
             double sides = off || joining ? (Sides(p) - 0.4) * 0.5 : 0;
             return motive * (0.3 + p.M(MindTrait.Temper)) + learned + sides
@@ -109,7 +109,14 @@ namespace Anthro.Sim
         bool Joins(Person p, Person leader, double value, Verb verb)
         {
             if (!Grown(p) || p.Health < 0.4 || !AwakeInCamp(p) || double.IsNegativeInfinity(value)) return false;
-            return value + Pull(p, leader) + Rng.Normal(0, 0.1) > Decider.BestAlternative(this, p, verb);
+
+            double nudgeJoin = (!Off("god") && !Off("nudge")) ? Math.Max(p.ConsumeNudgeWeight(verb == Verb.Rally ? "rally" : "raid", 0.5, "join", "yes"), p.ConsumeNudgeWeight("raid", 0.5, "join", "yes")) : 0.0;
+            bool willJoin = value + Pull(p, leader) + Rng.Normal(0, 0.1) + nudgeJoin > Decider.BestAlternative(this, p, verb);
+            if (willJoin && !Off("god"))
+            {
+                Region.GodEvents.Add(new GodEvent(Clock.Tick, "ForkRaid", $"{p.Name} decided to join {leader.Name}'s {verb}", (int)Band.CampX, (int)Band.CampY));
+            }
+            return willJoin;
         }
 
         /// <summary>
@@ -204,7 +211,7 @@ namespace Anthro.Sim
             // one full of friends and kin. Against another people, it's fighting outsiders.
             var rel = foe.Tribe != Tribe ? Relation.Outsider : CampRelation(p, foe);
             return anger / (anger + 4) * (0.3 + p.M(MindTrait.Temper)) * 1.5 + Felt(Expects(p, Act.Attack, rel))
-                   + p.Drives[(int)Drive.Standing] * 0.2
+                   + GodActValue(p, Act.Attack) + p.Drives[(int)Drive.Standing] * 0.2
                    - Math.Min(1.5, odds) * (0.3 + kids * 0.1) * (1.2 - p.M(MindTrait.Boldness) * 0.6) * p.W(Drive.Safety);
         }
 
@@ -293,7 +300,7 @@ namespace Anthro.Sim
             TellPlaces(mine, other);
             TellPlaces(other, mine);
             Contact(mine, other, 1);
-            SocialLearning.Exchange(mine, other, Rng);
+            SocialLearning.Exchange(mine, other, Rng, Region?.GodRng);
             Gossip(mine, other);
             PassOn(mine, other);
             PassOn(other, mine);

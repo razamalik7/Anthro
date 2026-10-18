@@ -173,7 +173,7 @@ namespace Anthro.Sim
         }
 
         /// <summary>Not off in the field or away visiting: about camp, where people see what goes on.</summary>
-        static bool AtCamp(Person p) => !(p.Current is Forage || p.Current is Hunt || p.Current is GatherFlint || p.Current is GatherWood || p.Current is Visit || p.Current is Fish || p.Current is Trap);
+        internal static bool AtCamp(Person p) => !(p.Current is Forage || p.Current is Hunt || p.Current is GatherFlint || p.Current is GatherWood || p.Current is Visit || p.Current is Fish || p.Current is Trap);
 
         static double Norm(Person p, string name, double fallback) => p.Expect.Get(Expectations.Norm(name), fallback);
 

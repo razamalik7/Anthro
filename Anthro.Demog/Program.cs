@@ -12,6 +12,7 @@ for (var dir = new DirectoryInfo(AppContext.BaseDirectory); webPath == "" && dir
 var web = WebLoader.Load(webPath);
 var region = Region.Create(seed, web, otherBands: args.Length > 4 ? int.Parse(args[4]) : 0, kinCamps: args.Length > 2 ? int.Parse(args[2]) : 0);
 if (args.Length > 3 && args[3] != "-") foreach (var m in region.People) foreach (var g in args[3].Split(',')) m.Knows.Add(g);
+if (args.Length > 5 && args[5] != "-") region.Policy = BotGod.FromString(args[5]);
 if (years == 0)
 {
     // What the land could give each season at most: regrowth of 5%/day of the gap to the seasonal target,
@@ -75,17 +76,48 @@ region.YearEnded += all =>
     Console.WriteLine($"    hours: {string.Join(", ", hours.OrderByDescending(h => h.Value).Select(h => $"{h.Key} {h.Value / (double)Math.Max(1, adults) / SimClock.DaysPerYear:F2}"))} (per adult per day)");
     var known = region.People.SelectMany(p => p.Knows).GroupBy(k => k).Where(g => web.Stages.TryGetValue(g.Key, out var st) && !st.Known).Select(g => $"{g.Key} {g.Count() * 100 / Math.Max(1, pop)}%");
     if (region.Clock.Year % 10 == 0) Console.WriteLine($"    known: {string.Join(", ", known)}");
-    if (region.Clock.Year % 10 == 0 || region.Clock.Year == 1)
+    if (region.Clock.Year % 10 == 0 || region.Clock.Year == 1 || (!Simulation.Off("god") && region.Clock.Year == 25))
         foreach (var t in region.LivingTribes)
         {
             var ms = region.CampsOf(t).SelectMany(c => c.Band.Members).Where(m => (now0 - m.BirthDay) / SimClock.DaysPerYear >= 15).ToList();
             if (ms.Count == 0) continue;
             double A(string k, double f) => ms.Average(m => m.Expect.Get(k, f));
-            Console.WriteLine($"    culture [{t.Name}]: violence kin {A("bound:kin", 0.8):F2} friend {A("bound:friend", 0.8):F2} stranger {A("bound:neutral", 0.8):F2} outsider {A("bound:outsider", 0.8):F2} | honour {A("norm:honour", 0):F2} peacemaking {A("norm:peacemaking", 0.5):F2} | rationing {A("norm:rationing", 0.6):F2} demand {A("norm:demand", 0.3):F2} elders {A("norm:elders", 1):F2} hunting {A("norm:hunting", 0.4):F2} plural {A("wed:more", 0):F2}");
+            string godCulture = Simulation.Off("god") ? "" : $" | belief {ms.Count(Simulation.IsBeliever)}/{ms.Count} mean {ms.Average(Simulation.GodReal):F2} answers {ms.Average(Simulation.GodAnswers):F2} kind {ms.Average(Simulation.GodKind):F2} | god acts take {A("god:take", 0):F2} give {A("god:give", 0):F2} attack {A("god:attack", 0):F2} offer {A("god:offer", 0):F2} refuse {A("god:refuse", 0):F2} thank {A("god:thank", 0):F2}";
+            Console.WriteLine($"    culture [{t.Name}]: violence kin {A("bound:kin", 0.8):F2} friend {A("bound:friend", 0.8):F2} stranger {A("bound:neutral", 0.8):F2} outsider {A("bound:outsider", 0.8):F2} | honour {A("norm:honour", 0):F2} peacemaking {A("norm:peacemaking", 0.5):F2} | rationing {A("norm:rationing", 0.6):F2} demand {A("norm:demand", 0.3):F2} elders {A("norm:elders", 1):F2} hunting {A("norm:hunting", 0.4):F2} plural {A("wed:more", 0):F2}" + godCulture);
+            if (!Simulation.Off("god"))
+            {
+                bool Practicing(Person m) => m.LastThanksDay >= now0 - SimClock.DaysPerYear || m.OwnDeeds.Any(d => d.Deed.Day >= now0 - SimClock.DaysPerYear && d.Deed.Act == Act.Offer) || region.ActivePrayers.Any(pr => pr.Asker == m) || region.ResolvedPrayers.Any(pr => pr.Asker == m && now0 - pr.StartDay <= SimClock.DaysPerYear);
+                int skep = ms.Count(m => Simulation.GodReal(m) < 0.3);
+                int open = ms.Count(m => Simulation.GodReal(m) >= 0.3 && Simulation.GodReal(m) < 0.6);
+                int dev = ms.Count(m => Simulation.GodReal(m) >= 0.8 && Practicing(m));
+                int bel = ms.Count - skep - open - dev;
+                double Sd(string k) { double avg = ms.Average(m => m.Expect.Get(k, 0.0)); return Math.Sqrt(ms.Average(m => Math.Pow(m.Expect.Get(k, 0.0) - avg, 2))); }
+                var camps = region.CampsOf(t).Where(c => c.Band.Members.Count >= 5).ToList();
+                double campSd = 0.0;
+                if (camps.Count > 1)
+                {
+                    var campMeans = camps.Select(c => c.Band.Members.Where(m => (now0 - m.BirthDay) / SimClock.DaysPerYear >= 15).Select(Simulation.GodReal).DefaultIfEmpty(0.2).Average()).ToList();
+                    double avgC = campMeans.Average();
+                    campSd = Math.Sqrt(campMeans.Average(cm => Math.Pow(cm - avgC, 2)));
+                }
+                Console.WriteLine($"    belief_bands [{t.Name}] Y{region.Clock.Year}: skeptic {skep * 100.0 / ms.Count:F1}% open {open * 100.0 / ms.Count:F1}% believer {bel * 100.0 / ms.Count:F1}% devout {dev * 100.0 / ms.Count:F1}% | god spread take {Sd("god:take"):F2} give {Sd("god:give"):F2} attack {Sd("god:attack"):F2} offer {Sd("god:offer"):F2} | between_camp_sd {campSd:F2}");
+            }
         }
+    if (!Simulation.Off("god") && (region.Clock.Year % 10 == 0 || region.Clock.Year == 1 || region.Clock.Year == 25))
+    {
+        int springDev = all.Sum(a => a.year.DevotionBySeason.TryGetValue(Season.Spring, out var v) ? v : 0);
+        int summerDev = all.Sum(a => a.year.DevotionBySeason.TryGetValue(Season.Summer, out var v) ? v : 0);
+        int autumnDev = all.Sum(a => a.year.DevotionBySeason.TryGetValue(Season.Autumn, out var v) ? v : 0);
+        int winterDev = all.Sum(a => a.year.DevotionBySeason.TryGetValue(Season.Winter, out var v) ? v : 0);
+        int fedDev = all.Sum(a => a.year.DevotionFed);
+        int hungryDev = all.Sum(a => a.year.DevotionHungry);
+        double ad = Math.Max(1.0, adults);
+        Console.WriteLine($"    devotion Y{region.Clock.Year}: spring {springDev / ad:F2} summer {summerDev / ad:F2} autumn {autumnDev / ad:F2} winter {winterDev / ad:F2} | fed {fedDev / ad:F2} hungry {hungryDev / ad:F2} (per adult/yr)");
+    }
     Console.WriteLine($"    seasons fed (mean/low10%): {string.Join(" ", seasonFed.Select(kv => $"{kv.Key} {kv.Value.Average():F2}/{kv.Value.OrderBy(x => x).ElementAt(kv.Value.Count / 10):F2}"))}");
     seasonFed.Clear();
-    Console.WriteLine($"Y{region.Clock.Year,3} pop {pop,4} bands {region.Bands.Count,2} tiny {region.Bands.Count(b => b.Band.Members.Count < 6),2} splits {splits / 2,3} moves {moves,4} dogs {region.Bands.Sum(b => b.Band.Dogs),3} peoples {region.LivingTribes.Count()} camps/people {string.Join("/", region.LivingTribes.Select(t => region.CampsOf(t).Count()))} sizes {string.Join("/", region.Bands.OrderByDescending(b => b.Band.Members.Count).Select(b => b.Band.Members.Count))} b {births,3} d {deaths,3} starv {starv,2} viol {viol,2} fed {sat:F2} food/need {(need > 0 ? got / need : 0):F2} hunted/need {(need > 0 ? all.Sum(a => a.year.Hunted) / need : 0):F2} fished/need {(need > 0 ? all.Sum(a => a.year.Fished) / need : 0):F2} | asked other camps {all.Sum(a => a.year.GuestAsks)} gave {all.Sum(a => a.year.GuestGifts)} carried {all.Sum(a => a.year.GuestFood):F0} abandoned {all.Sum(a => a.year.Abandoned):F0} fightkinds {string.Join(",", all.SelectMany(a => a.year.FightsBy).GroupBy(k => k.Key).Select(g => $"{g.Key}:{g.Sum(x => x.Value)}/{all.Sum(a => a.year.FightDeathsBy.TryGetValue(g.Key, out var d) ? d : 0)}"))} raids {all.Sum(a => a.year.Raids)} | settled: days-at-site {region.Bands.Select(b => b.DaysHere).DefaultIfEmpty(0).Average():F0} (max {region.Bands.Select(b => b.DaysHere).DefaultIfEmpty(0).Max():F0}) weirs {region.World.All().Count(c => c.Weir >= 0.5)} | rationlessons up {all.Sum(a => a.year.RationUp)} down {all.Sum(a => a.year.RationDown)} held {all.Sum(a => a.year.RationHeld)} none {all.Sum(a => a.year.RationNone)} | campmoves {campMoves} feasts {feasts} fights {fights} peacemade {peace} routs {routs}"); campMoves = feasts = fights = peace = routs = 0; Console.Out.Flush();
+    string godY = Simulation.Off("god") ? "" : $" | prayers {all.Sum(a => a.year.PrayersAsked)}/{all.Sum(a => a.year.PrayersResolvedGood)}/{all.Sum(a => a.year.PrayersResolvedBad)} offered {all.Sum(a => a.year.FoodOffered):F1} favor {region.Favor:F1} rep {region.Reputation:F1}";
+    Console.WriteLine($"Y{region.Clock.Year,3} pop {pop,4} bands {region.Bands.Count,2} tiny {region.Bands.Count(b => b.Band.Members.Count < 6),2} splits {splits / 2,3} moves {moves,4} dogs {region.Bands.Sum(b => b.Band.Dogs),3} peoples {region.LivingTribes.Count()} camps/people {string.Join("/", region.LivingTribes.Select(t => region.CampsOf(t).Count()))} sizes {string.Join("/", region.Bands.OrderByDescending(b => b.Band.Members.Count).Select(b => b.Band.Members.Count))} b {births,3} d {deaths,3} starv {starv,2} viol {viol,2} fed {sat:F2} food/need {(need > 0 ? got / need : 0):F2} hunted/need {(need > 0 ? all.Sum(a => a.year.Hunted) / need : 0):F2} fished/need {(need > 0 ? all.Sum(a => a.year.Fished) / need : 0):F2} | asked other camps {all.Sum(a => a.year.GuestAsks)} gave {all.Sum(a => a.year.GuestGifts)} carried {all.Sum(a => a.year.GuestFood):F0} abandoned {all.Sum(a => a.year.Abandoned):F0} fightkinds {string.Join(",", all.SelectMany(a => a.year.FightsBy).GroupBy(k => k.Key).Select(g => $"{g.Key}:{g.Sum(x => x.Value)}/{all.Sum(a => a.year.FightDeathsBy.TryGetValue(g.Key, out var d) ? d : 0)}"))} raids {all.Sum(a => a.year.Raids)} | settled: days-at-site {region.Bands.Select(b => b.DaysHere).DefaultIfEmpty(0).Average():F0} (max {region.Bands.Select(b => b.DaysHere).DefaultIfEmpty(0).Max():F0}) weirs {region.World.All().Count(c => c.Weir >= 0.5)} | rationlessons up {all.Sum(a => a.year.RationUp)} down {all.Sum(a => a.year.RationDown)} held {all.Sum(a => a.year.RationHeld)} none {all.Sum(a => a.year.RationNone)} | campmoves {campMoves} feasts {feasts} fights {fights} peacemade {peace} routs {routs}" + godY); campMoves = feasts = fights = peace = routs = 0; Console.Out.Flush();
 };
 for (int done = 0; done < years; done += 20)
 {
@@ -201,4 +233,11 @@ Console.WriteLine($"  PLURAL now: {hubs.Count(h => h.Sex == Sex.Male)} men with 
 Console.WriteLine($"  breakups over run: {partings} parted + {leftFor} left for someone else; mothers with children by >1 father {fathers.Count(n => n > 1)}/{fathers.Count}");
 var ages = region.People.Select(p => Age(p, now)).ToList();
 Console.WriteLine($"AGE STRUCTURE now ({ages.Count}): <5 {ages.Count(a => a < 5) / (double)ages.Count:P0}, <15 {ages.Count(a => a < 15) / (double)ages.Count:P0}, 15-44 {ages.Count(a => a >= 15 && a < 45) / (double)ages.Count:P0}, 45+ {ages.Count(a => a >= 45) / (double)ages.Count:P0}, 60+ {ages.Count(a => a >= 60) / (double)ages.Count:P0}; density {ages.Count / 1600.0:F3}/km2; bands {region.Bands.Count}, mean size {ages.Count / (double)Math.Max(1, region.Bands.Count):F0}");
+if (!Simulation.Off("god"))
+{
+    double ySim = Math.Max(1.0, region.Clock.Year);
+    double pctBroke = region.DaysTotal > 0 ? (double)region.DaysBroke / region.DaysTotal : 0.0;
+    var spentList = region.FavorSpentByPower.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{kv.Value / ySim:F2}");
+    Console.WriteLine($"FAVOR_AUDIT bot {region.Policy} earned/yr prayer:{region.FavorEarnedPrayer/ySim:F2} thank:{region.FavorEarnedThanks/ySim:F2} offer:{region.FavorEarnedOffer/ySim:F2} rite:{region.FavorEarnedRite/ySim:F2} other:{region.FavorEarnedOther/ySim:F2} | spent/yr {(spentList.Any() ? string.Join(" ", spentList) : "none")} | broke_pct {pctBroke*100:F1}% first_broke_day {region.FirstBrokeDay} | help {region.GodHelp:F1} harm {region.GodHarm:F1}");
+}
 }

@@ -7,7 +7,7 @@ namespace Anthro.Sim.People
     /// from a hearth that isn't yours is just Take, and what it means comes from who saw it and what
     /// they did about it.
     /// </summary>
-    public enum Act { Ask, Give, Refuse, Take, Confront, Attack, Return }
+    public enum Act { Ask, Give, Refuse, Take, Confront, Attack, Return, Offer }
 
     /// <summary>How the actor stands toward the person or household an act is aimed at.</summary>
     public enum Relation { Kin, Friend, Neutral, Distrusted, Outsider }

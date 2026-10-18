@@ -172,7 +172,7 @@ namespace Anthro.Sim
         internal static bool OutAlone(Person p) => p.Current is Forage || p.Current is Fish || p.Current is GatherWood || p.Current is Trap;
 
         /// <summary>A deed between people of different bands, witnessed by the band where it happened.</summary>
-        internal List<Person> HappenHere(Deed deed) => Happen(deed);
+        public List<Person> HappenHere(Deed deed) => Happen(deed);
 
         long _awakeTick = -1;
         int _awake;
@@ -203,7 +203,8 @@ namespace Anthro.Sim
                 // Those an act is done to face-to-face know of it; a take from a hearth is only noticed by
                 // whoever happens to be about.
                 bool involved = deed.Act != Act.Take && (m == deed.Target || (deed.Hearth != null && m.Home == deed.Hearth && !deed.Far));
-                if (involved || !deed.Far && AwakeInCamp(m) && Rng.Chance(0.15 * (0.6 + m.M(MindTrait.Curiosity) * 0.8))) seen.Add(m);
+                var witnessRng = deed.Act == Act.Offer ? Region.GodRng : Rng;
+                if (involved || !deed.Far && AwakeInCamp(m) && witnessRng.Chance(0.15 * (0.6 + m.M(MindTrait.Curiosity) * 0.8))) seen.Add(m);
             }
             // Someone an act is done to face to face knows of it, even if they're from another band.
             if (deed.Target != null && deed.Act != Act.Take && deed.Target != deed.Actor && !seen.Contains(deed.Target) && deed.Target.Alive) seen.Add(deed.Target);
@@ -215,9 +216,19 @@ namespace Anthro.Sim
 
         static void Remember(Person p, Deed deed, bool firsthand)
         {
-            if (!p.KnownDeeds.Add(deed)) return;
-            p.Deeds.Add(new Remembered(deed, firsthand));
-            if (p.Deeds.Count > 40) { p.KnownDeeds.Remove(p.Deeds[0].Deed); p.Deeds.RemoveAt(0); }
+            if (p == deed.Actor && !Off("selfmemory"))
+            {
+                if (!p.KnownOwnDeeds.Add(deed)) return;
+                p.OwnDeeds.Add(new Remembered(deed, firsthand));
+                // recent season (approx 10-20 deeds, let's keep 20)
+                if (p.OwnDeeds.Count > 20) { p.KnownOwnDeeds.Remove(p.OwnDeeds[0].Deed); p.OwnDeeds.RemoveAt(0); }
+            }
+            else
+            {
+                if (!p.KnownDeeds.Add(deed)) return;
+                p.Deeds.Add(new Remembered(deed, firsthand));
+                if (p.Deeds.Count > 40) { p.KnownDeeds.Remove(p.Deeds[0].Deed); p.Deeds.RemoveAt(0); }
+            }
         }
 
         /// <summary>
@@ -260,7 +271,17 @@ namespace Anthro.Sim
         /// <summary>A deed happens: witnesses notice and feel it, and the chronicle records what it amounted to.</summary>
         List<Person> Happen(Deed deed)
         {
+            if (!Off("selfmemory")) Remember(deed.Actor, deed, true);
             var seen = Witness(deed);
+            if (seen.Count > 0 || deed.Act == Act.Offer)
+            {
+                if (deed.Act == Act.Give) { LastWitnessedGiveTick = Clock.Tick; LastGiveDay = Clock.Day; LastWitnessedGiveDeed = deed; }
+                else if (deed.Act == Act.Take) { LastWitnessedTheftTick = Clock.Tick; LastWitnessedWrongdoer = deed.Actor; }
+                else if (deed.Act == Act.Attack) { LastWitnessedAttackTick = Clock.Tick; LastWitnessedWrongdoer = deed.Actor; }
+                else if (deed.Act == Act.Offer) { LastWitnessedOfferTick = Clock.Tick; LastOfferDay = Clock.Day; LastWitnessedOfferDeed = deed; }
+                if (deed.Act == Act.Give || deed.Act == Act.Take || deed.Act == Act.Attack || deed.Act == Act.Offer || deed.Act == Act.Refuse)
+                    LastWitnessedDeed = deed;
+            }
             foreach (var w in seen) Feel(w, deed, 1);
             Narrate(deed, seen);
             return seen;
@@ -420,6 +441,7 @@ namespace Anthro.Sim
             double pull = theirHunger * (0.4 + giver.M(MindTrait.Warmth))
                           + (rel == Relation.Kin ? 0.6 : 0) + giver.GetAffinity(asker) * 0.5
                           + Expects(giver, Act.Give, rel) - Expects(giver, Act.Refuse, rel)
+                          + GodActValue(giver, Act.Give) - GodActValue(giver, Act.Refuse)
                           - giver.GetGrievance(asker) * 0.3
                           - Inheritance.Clamp01(1 - home.DaysOfFood / 4) * 0.8
                           + Rng.Normal(0, 0.1);
@@ -448,6 +470,11 @@ namespace Anthro.Sim
                     carryHome.AddPlants(taken - meat, keeps: true);
                 }
                 var deed = new Deed { Day = Clock.Day, Actor = giver, Act = Act.Give, Target = asker, Hearth = home, Amount = give, Context = Lesson(Act.Give, RelationTo(giver, asker)) };
+                if (!Off("god") && !Off("relief") && giver.Dread > 0.05)
+                {
+                    giver.AppeasementAct = "give";
+                    giver.AppeasementDread = giver.Dread;
+                }
                 Happen(deed);
                 // The giver feels the cost now; any return comes later.
                 // The giver feels the cost now (more when their own hearth is short); seeing their own kin
@@ -522,6 +549,11 @@ namespace Anthro.Sim
                     if (give <= 0.05) continue;
                     MoveFood(h, other, give, out _);
                     var deed = new Deed { Day = Clock.Day, Actor = giver, Act = Act.Give, Target = asker, Hearth = other, Amount = give, Context = Lesson(Act.Give, RelationTo(giver, asker)) };
+                    if (!Off("god") && !Off("relief") && giver.Dread > 0.05)
+                    {
+                        giver.AppeasementAct = "give";
+                        giver.AppeasementDread = giver.Dread;
+                    }
                     Happen(deed);
                     Reciprocate(asker, giver, give);
                     foreach (var a in other.Adults(Clock))
@@ -583,7 +615,7 @@ namespace Anthro.Sim
             double heat = anger / (anger + 3);
             double fear = backing / Math.Max(0.1, Strength(p)) * 0.3 + p.Injury;
             return heat * (0.4 + p.M(MindTrait.Temper) * 0.6) * 1.5 + Felt(Expects(p, Act.Confront, RelationTo(p, target)))
-                   - Felt(Guilt(p, target)) * 0.5 - fear * 0.3 * p.W(Drive.Safety);
+                   + GodActValue(p, Act.Confront) - Felt(Guilt(p, target)) * 0.5 - fear * 0.3 * p.W(Drive.Safety);
         }
 
         public void DoConfront(Person accuser, Person accused)
@@ -653,7 +685,14 @@ namespace Anthro.Sim
             bool overFood = answers?.Act == Act.Take;
             bool here = Band.Members.Contains(attacker) && Band.Members.Contains(target);
             // Where a people settles grudges one on one, the two fight it out and the rest watch.
-            bool duel = here && Rng.Chance((Duel(attacker) + Duel(target)) / 2);
+            double nudgeA = (!Off("god") && !Off("nudge")) ? attacker.ConsumeNudgeWeight("duel", 0.5, "fight", "duel", "yes") : 0.0;
+            double nudgeT = (!Off("god") && !Off("nudge")) ? target.ConsumeNudgeWeight("duel", 0.5, "fight", "duel", "yes") : 0.0;
+
+            bool duel = here && Rng.Chance((Duel(attacker) + Duel(target)) / 2 + nudgeA + nudgeT);
+            if (duel && !Off("god"))
+            {
+                Region.GodEvents.Add(new GodEvent(Clock.Tick, "ForkDuel", $"{attacker.Name} challenged {target.Name} to a duel", (int)Band.CampX, (int)Band.CampY));
+            }
             Fight(new[] { attacker }, new[] { target }, answers, overFood, inCamp: here && !duel, kind: duel ? "duel" : "quarrel");
         }
 
@@ -713,14 +752,33 @@ namespace Anthro.Sim
             }
             SeedViolenceCulture(group);
             SeedCustoms(group);
+            SeedBelief(group);
         }
 
         /// <summary>A newborn takes on its mother's expectations about how people treat each other (it grows up among them).</summary>
         static void InheritSocialExpectations(Person child, Person mother)
         {
+            double cred = child.M(MindTrait.Credulity);
             foreach (var kv in mother.Expect.Snapshot())
+            {
                 if (kv.Key.StartsWith("act:") || kv.Key.StartsWith("wed:") || kv.Key.StartsWith("bound:") || kv.Key.StartsWith("norm:"))
                     child.Expect.Absorb(kv.Key, kv.Value, 1, kv.Value);
+                else if (!Off("god") && kv.Key.StartsWith("god:"))
+                {
+                    if (kv.Key == "god:real")
+                    {
+                        double baseSeed = Math.Clamp(0.08 + 0.24 * cred, 0.08, 0.26);
+                        double inheritShare = Math.Clamp(0.85 * (cred - 0.15), 0.0, 0.70);
+                        double v = Math.Clamp(baseSeed * (1.0 - inheritShare) + kv.Value * inheritShare, 0.06, 0.90);
+                        child.Expect.Absorb(kv.Key, v, 1, v);
+                    }
+                    else
+                    {
+                        double v = kv.Value * (0.50 + 0.40 * cred);
+                        child.Expect.Absorb(kv.Key, v, 1, v);
+                    }
+                }
+            }
         }
     }
 }

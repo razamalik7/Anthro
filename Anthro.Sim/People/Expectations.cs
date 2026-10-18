@@ -12,13 +12,26 @@ namespace Anthro.Sim.People
     {
         readonly Dictionary<string, double> _values = new Dictionary<string, double>();
         readonly List<string> _topics = new List<string>();
+        readonly List<string> _secularTopics = new List<string>();
+        readonly List<string> _godTopics = new List<string>();
 
         /// <summary>Every topic this person holds a belief about.</summary>
         public IReadOnlyList<string> Topics => _topics;
+        /// <summary>Secular topics only, matching the exact order and content of the base simulation.</summary>
+        public IReadOnlyList<string> SecularTopics => _secularTopics;
+        /// <summary>God topics only, sampled separately without perturbing secular social learning.</summary>
+        public IReadOnlyList<string> GodTopics => _godTopics;
 
         void Set(string topic, double value)
         {
-            if (!_values.ContainsKey(topic)) _topics.Add(topic);
+            if (!_values.ContainsKey(topic))
+            {
+                _topics.Add(topic);
+                if (topic.StartsWith("god:"))
+                    _godTopics.Add(topic);
+                else
+                    _secularTopics.Add(topic);
+            }
             _values[topic] = value;
         }
 

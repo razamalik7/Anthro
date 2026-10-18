@@ -28,6 +28,10 @@ namespace Anthro.Sim
         /// <summary>Rationing lessons this year (diagnostic): up/down, and whether the family had actually rationed that season.</summary>
         public int RationUp, RationDown, RationHeld, RationNone;
         public int Refusals, Thefts, Fights, Raids;
+        public int PrayersAsked, PrayersResolvedGood, PrayersResolvedBad;
+        public double FavorGain, FoodOffered;
+        public readonly Dictionary<Core.Season, int> DevotionBySeason = new Dictionary<Core.Season, int>();
+        public int DevotionFed, DevotionHungry;
         public readonly Dictionary<Activities.Verb, long> Hours = new Dictionary<Activities.Verb, long>();
         internal int Samples;
         public readonly Dictionary<string, int> Deaths = new Dictionary<string, int>();
@@ -51,6 +55,17 @@ namespace Anthro.Sim
         public EcologySystem Ecology => Region.Ecology;
         public readonly Band Band = new Band();
         public DiscoveryWeb? Web => Region.Web;
+        public long LastWitnessedTheftTick = -99999;
+        public long LastWitnessedGiveTick = -99999;
+        public long LastWitnessedAttackTick = -99999;
+        public long LastWitnessedOfferTick = -99999;
+        public long LastOfferDay = -99999;
+        public long LastGiveDay = -99999;
+        public Person? LastWitnessedWrongdoer;
+        public Deed? LastWitnessedDeed;
+        public Deed? LastWitnessedGiveDeed;
+        public Deed? LastWitnessedOfferDeed;
+        public long LastBountyDay = -99999;
 
         /// <summary>
         /// People from other bands who are here to talk: guests who walked over to visit, and the
@@ -86,6 +101,7 @@ namespace Anthro.Sim
 
         /// <summary>Best plant patches near camp, refreshed daily so foragers don't each scan the map.</summary>
         public readonly List<Cell> ForagePatches = new List<Cell>();
+        public double OfferUrge = 1.0;
 
         public YearStats ThisYear { get; private set; } = new YearStats();
         public event Action<YearStats>? YearEnded;
@@ -368,6 +384,13 @@ namespace Anthro.Sim
             if (Clock.Day % 7 == 0) TendGrain();
             if (Clock.Day % 7 == 0) SeekCompany();
             Gathering();
+            if (!Off("god") && !Off("offer") && Band.Members.Count > 0)
+            {
+                double campPull = Band.Members.Where(Grown)
+                    .Select(m => GodReal(m) * Math.Max(0.0, GodOffer(m)) + m.Dread * 0.20)
+                    .DefaultIfEmpty(0.0).Average();
+                OfferUrge = Math.Min(2.0, OfferUrge + campPull * 0.12);
+            }
             if (Clock.Day % 7 == 0) foreach (var m in Band.Members) m.Map.Fade(Clock.Day, MapCapacity(m));
             using (Profiler.Measure("daily wolves")) WolvesNearCamp();
             using (Profiler.Measure("daily patches")) RefreshForagePatches();
@@ -526,6 +549,8 @@ namespace Anthro.Sim
                 if (p.WinterLow < 0.6) AfterHungrySeason(p);
                 p.WinterLow = 1;
             }
+
+            FadeBelief(p);
 
             p.CareToday = 0;
             p.Fatigue *= 0.9;
@@ -711,6 +736,33 @@ namespace Anthro.Sim
             // Laying the dead to rest eases the grief of those left (less of it turns to discontent).
             if (Band.AnyoneKnows("burial.cover"))
                 foreach (var m in Band.Members) m.Discontent *= Band.AnyoneKnows("burial.goods") ? 0.9 : 0.95;
+
+            // B3 (owner decision 2026-10-12): Grave goods left with dead when burial.rites is known.
+            // A witnessed gift to the unseen: if good things follow, it can teach god:offer like any other offering.
+            if (!Off("god") && !Off("offer") && (Band.AnyoneKnows("burial.rites") || Band.AnyoneKnows("burial.goods")))
+            {
+                var adults = Band.Members.Where(m => m.IsAdult(Clock)).ToList();
+                var giver = adults.OrderByDescending(m => m.IsKin(p) ? 2 : (m.Spouses.Contains(p) ? 3 : 1)).FirstOrDefault();
+                if (giver != null && (GodReal(giver) > 0.22 || GodOffer(giver) > 0.05))
+                {
+                    var h = HomeOf(giver) ?? HomeOf(p);
+                    double giftAmount = 0.0;
+                    if (h != null && h.Food.Total >= 1.0)
+                        giftAmount = h.Food.Take(Math.Min(0.5, h.Food.Total * 0.08), out _);
+                    else if (Band.Materials.Tools >= 1)
+                    {
+                        Band.Materials.Tools -= 1;
+                        giftAmount = 0.5;
+                    }
+
+                    if (giftAmount > 0.0)
+                    {
+                        Region.OfferingsFromGraveGoodsCount++;
+                        HappenHere(new People.Deed { Day = Clock.Day, Actor = giver, Act = People.Act.Offer, Amount = giftAmount, Target = p, Hearth = h });
+                        Chronicle.Write(Clock, Importance.Detail, $"{giver.Name} left grave goods with {p.Name}.");
+                    }
+                }
+            }
             LeaveHousehold(p);
             Band.Members.Remove(p);
             Band.Dead.Add(p);
@@ -801,19 +853,36 @@ namespace Anthro.Sim
             mother.DueDay = -1;
             var father = mother.ExpectingWith ?? mother.Partner!;
             mother.ExpectingWith = null;
+            bool blessed = mother.BlessedNextBirth && !Off("god") && !Off("bless");
+            mother.BlessedNextBirth = false;
             var child = NewChild(mother, father, 0);
-            child.Health = 0.6 + 0.4 * mother.Satiety;
+            if (blessed)
+            {
+                child.Blessed = true;
+                child.Health = 1.0;
+                child.Body[(int)BodyTrait.Strength] = Math.Min(1.0, child.Body[(int)BodyTrait.Strength] + 0.3);
+                child.Body[(int)BodyTrait.Endurance] = Math.Min(1.0, child.Body[(int)BodyTrait.Endurance] + 0.3);
+                child.Body[(int)BodyTrait.Immunity] = Math.Min(1.0, child.Body[(int)BodyTrait.Immunity] + 0.3);
+                child.Mind[(int)MindTrait.Boldness] = Math.Min(1.0, child.Mind[(int)MindTrait.Boldness] + 0.3);
+                child.Mind[(int)MindTrait.Resilience] = Math.Min(1.0, child.Mind[(int)MindTrait.Resilience] + 0.3);
+                child.Mind[(int)MindTrait.Aptitude] = Math.Min(1.0, child.Mind[(int)MindTrait.Aptitude] + 0.3);
+            }
+            else
+            {
+                child.Health = 0.6 + 0.4 * mother.Satiety;
+            }
             ThisYear.Births++;
-            Chronicle.Write(Clock, Importance.Detail, $"{child.Name} was born to {mother.Name} and {father.Name}.");
+            Chronicle.Write(Clock, blessed ? Importance.Major : Importance.Detail,
+                blessed ? $"{child.Name} was born blessed by the god to {mother.Name} and {father.Name}." : $"{child.Name} was born to {mother.Name} and {father.Name}.");
             AfterBirth(mother, father);
 
             // Births go wrong more often for older, weaker or hungrier mothers.
             double age = mother.AgeYears(Clock);
-            double complication = 0.01 + Math.Max(0, age - 35) * 0.004 + (1 - mother.Health) * 0.05 + (1 - mother.Satiety) * 0.03;
+            double complication = blessed ? 0.0 : 0.01 + Math.Max(0, age - 35) * 0.004 + (1 - mother.Health) * 0.05 + (1 - mother.Satiety) * 0.03;
             // An infection after the birth can leave a woman unable to conceive again: in populations
             // without medicine about one woman in ten is sterile by her mid-thirties.
-            if (Rng.Chance(0.025 + complication)) mother.Sterile = true;
-            if (Rng.Chance(complication))
+            if (!blessed && Rng.Chance(0.025 + complication)) mother.Sterile = true;
+            if (!blessed && Rng.Chance(complication))
             {
                 // Bleeding and infection after birth: about half of serious complications kill, which
                 // comes to roughly one death per hundred births, as among real foragers.

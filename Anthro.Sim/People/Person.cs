@@ -66,6 +66,37 @@ namespace Anthro.Sim.People
         /// </summary>
         public readonly Dictionary<string, double> Learning = new Dictionary<string, double>();
         public readonly Expectations Expect = new Expectations();
+        /// <summary>Active divine nudges at life branch points (T8): fork -> choice.</summary>
+        public readonly Dictionary<string, string> Nudges = new Dictionary<string, string>();
+
+        /// <summary>Per-person dread after a striking bad event (T10 A2). Fades gradually unless renewed.</summary>
+        public double Dread { get; set; } = 0.0;
+        public double DreadPeak { get; set; } = 0.0;
+        public string? AppeasementAct { get; set; } = null;
+        public double AppeasementDread { get; set; } = 0.0;
+        public long LastGodSignDay { get; set; } = -1;
+        public long LastThanksDay { get; set; } = -99999;
+        public double ThanksUrge { get; set; } = 0.0;
+        public long LastPrayDay { get; set; } = -99999;
+
+        public double ConsumeNudgeWeight(string fork, double basePush = 0.5, params string[] targetChoices)
+        {
+            if (Nudges.TryGetValue(fork, out var pushedChoice))
+            {
+                Nudges.Remove(fork);
+                double weight = basePush * Simulation.GodReal(this) * (0.5 + M(MindTrait.Credulity));
+                return targetChoices.Contains(pushedChoice) ? weight : -weight;
+            }
+            return 0.0;
+        }
+
+        public string NudgeOutlook(string fork, string choice, double basePush = 0.5)
+        {
+            double weight = basePush * Simulation.GodReal(this) * (0.5 + M(MindTrait.Credulity));
+            if (weight < 0.1) return "set on it, a whisper won't do it";
+            if (weight < 0.3) return "torn, might listen";
+            return "torn, likely to listen";
+        }
         /// <summary>Fondness for each person (0 to 1). Grows with time together; fades without it; drops with conflict.</summary>
         public readonly Dictionary<int, double> Affinity = new Dictionary<int, double>();
         /// <summary>
@@ -95,6 +126,9 @@ namespace Anthro.Sim.People
         /// <summary>Deeds they've seen or heard about, newest last (a few dozen at most).</summary>
         public readonly List<Remembered> Deeds = new List<Remembered>();
         public readonly HashSet<Deed> KnownDeeds = new HashSet<Deed>();
+        /// <summary>Their own recent acts (recent season), kept separate to not crowd out memory of others.</summary>
+        public readonly List<Remembered> OwnDeeds = new List<Remembered>();
+        public readonly HashSet<Deed> KnownOwnDeeds = new HashSet<Deed>();
         /// <summary>What they know of the land: places, game seen lately, other camps.</summary>
         public readonly MentalMap Map = new MentalMap();
         /// <summary>The household this person eats and lives with.</summary>
@@ -139,6 +173,10 @@ namespace Anthro.Sim.People
         public bool Alive = true;
         public string? DeathCause;
         public long DueDay = -1;
+        /// <summary>Next child born to this mother is blessed by the god.</summary>
+        public bool BlessedNextBirth;
+        /// <summary>Born under the god's blessing.</summary>
+        public bool Blessed;
         /// <summary>Can no longer conceive: most often from an infection after a birth (secondary sterility).</summary>
         public bool Sterile;
         public Person? ExpectingWith;

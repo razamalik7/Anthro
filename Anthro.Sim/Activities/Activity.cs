@@ -2,7 +2,7 @@ using Anthro.Sim.People;
 
 namespace Anthro.Sim.Activities
 {
-    public enum Verb { Sleep, Rest, Socialize, Forage, Hunt, Knap, GatherFlint, Care, Play, WatchAndLearn, Eat, Cook, GatherWood, Preserve, Visit, Fish, Ask, Take, Confront, Attack, Rally, Raid, Trap }
+    public enum Verb { Sleep, Rest, Socialize, Forage, Hunt, Knap, GatherFlint, Care, Play, WatchAndLearn, Eat, Cook, GatherWood, Preserve, Visit, Fish, Ask, Take, Confront, Attack, Rally, Raid, Trap, Pray, Offer }
 
     /// <summary>
     /// Something a person is doing, as a sequence of steps. <see cref="Step"/> names the current
