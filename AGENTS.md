@@ -8,10 +8,11 @@ C# 9, no Unity references) and runs headless; Unity comes later for presentation
 state) before changing anything. Current work: **the god layer**, spec in `docs/GOD-LAYER.md`, tasks in
 `docs/PHASE1-TASKS.md`.
 
-## Roles
-- **Overseer / Architect (Antigravity: Argon / Claude Opus / Gemini Pro)**: design decisions, specs, reviewing reports against core rules, maintaining mathematical and anthropological rigor.
-- **Implementer (Antigravity)**: one task at a time from `docs/PHASE1-TASKS.md`, adhering to the non-negotiable design rules.
-- **Runner (Antigravity / Flash)**: builds, multi-world parallel pools, paired bootstrap CI extraction, regression checks.
+## Roles & Subagent Delegation
+- **Overseer / Architect (Main Agent — Argon / Claude Opus / Gemini Pro)**: design decisions, specs, core architecture/math, reviewing reports against core rules, maintaining mathematical and anthropological rigor.
+- **Implementer**: implements tasks adhering to the non-negotiable design rules.
+- **Runner (`invoke_subagent` with `Model="flash"`, `TypeName="self"` or `"research"`)**: builds, full `dotnet test` runs, multi-world parallel Demog pools, paired bootstrap CI extraction, regression checks, broad file searches, and repetitive scaffolding.
+  - **Standing Rule:** Never ask the user to manually switch models in the chat UI to run Flash tasks. Instead, the main agent must proactively spawn `Model="flash"` subagents via `invoke_subagent` whenever test suites, multi-world runs, or mechanical/research tasks are needed, and review their results when they report back.
 - **The owner** decides anything that changes how the world works or what people value.
 
 ## The design rules (non-negotiable)
