@@ -3,12 +3,6 @@
 Start here if you are a new agent, or the owner on a new tool/account or second PC. Everything the project needs is in this
 repo; nothing depends on any single machine or AI account.
 
-## Two-PC Workflow (Public Code + Private Brain Sync)
-- **Public Code Repo:** `https://github.com/razamalik7/Anthro` (`git pull` / `git push`)
-- **Private Brain & Transcripts Repo:** `https://github.com/razamalik7/anthro-brain-private`
-  - Before leaving a PC: `.\tools\sync-brain.ps1 push`
-  - When sitting down at the other PC: `git pull` and `.\tools\sync-brain.ps1 pull` (restores live Antigravity transcripts & artifacts into `%USERPROFILE%\.gemini\antigravity\brain\`).
-
 ## What to read, in order
 1. `AGENTS.md` — the design rules, how to build/run/test, the run-efficiency rules, the workflow.
 2. `docs/agent-memory/` — the owner's standing preferences and project state that Claude kept as memory:
